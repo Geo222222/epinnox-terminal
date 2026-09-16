@@ -7,7 +7,7 @@ from statistics import mean
 from typing import Any
 
 from .backtest import run_backtest
-from .market import fetch_ohlcv
+from .market import fetch_ohlcv_range
 from .models import BacktestRequest, ScannerRequest
 from .presets import STRATEGIES
 
@@ -55,9 +55,18 @@ def _days(candles: list[dict]) -> float:
     return max(1.0 / 24.0, (candles[-1]["ts_ms"] - candles[0]["ts_ms"]) / 86_400_000.0)
 
 
+def _recent_history(symbol: str, timeframe: str, bars: int) -> list[dict]:
+    tf_ms = {"1m": 60_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000}[timeframe]
+    end = int(time.time() * 1000)
+    # Give the range pager some room for the currently forming bar and sparse/missing bars.
+    start = end - (bars + 50) * tf_ms
+    candles = fetch_ohlcv_range(symbol, timeframe, start, end, max_bars=bars + 100)
+    return candles[-bars:]
+
+
 def _walk_forward(candles: list[dict], bt_req: BacktestRequest, windows: int) -> dict[str, Any]:
-    # Sequential, non-overlapping holdout windows. This is deliberately simple and
-    # deterministic for OTS-01; OTS-02 can add expanding/rolling train-validation.
+    # Sequential, non-overlapping validation windows. OTS-01 intentionally keeps
+    # this deterministic; OTS-02 can add adaptive train/validation models later.
     if len(candles) < windows * 100:
         return {"windows": 0, "passed": 0, "pass_rate_pct": 0.0, "details": [], "insufficient_history": True}
     size = len(candles) // windows
@@ -162,15 +171,13 @@ def run_scanner(req: ScannerRequest) -> dict[str, Any]:
     scan_id = str(uuid.uuid4())
     rows: list[dict[str, Any]] = []
     errors: list[dict[str, str]] = []
-    market_cache: dict[tuple[str, str], list[dict]] = {}
 
     for symbol in req.symbols:
         for timeframe in req.timeframes:
             try:
-                candles = fetch_ohlcv(symbol, timeframe, req.history_bars)
+                candles = _recent_history(symbol, timeframe, req.history_bars)
                 if len(candles) < 100:
                     raise ValueError(f"only {len(candles)} candles returned")
-                market_cache[(symbol, timeframe)] = candles
             except Exception as exc:
                 errors.append({"symbol": symbol, "timeframe": timeframe, "error": str(exc)})
                 continue
@@ -182,9 +189,14 @@ def run_scanner(req: ScannerRequest) -> dict[str, Any]:
                         errors.append({"symbol": symbol, "timeframe": timeframe, "strategy": strategy, "target": str(target), "error": str(exc)})
 
     rows.sort(key=lambda row: _sort_key(req.objective, row), reverse=True)
+    qualified_seen = 0
     for index, row in enumerate(rows, start=1):
         row["objective_rank"] = index
-        row["qualified_rank"] = sum(1 for prior in rows[:index] if prior["qualified"]) if row["qualified"] else None
+        if row["qualified"]:
+            qualified_seen += 1
+            row["qualified_rank"] = qualified_seen
+        else:
+            row["qualified_rank"] = None
 
     qualified = [r for r in rows if r["qualified"]]
     completed = int(time.time() * 1000)
