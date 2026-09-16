@@ -48,6 +48,7 @@ jobs:
           test -s web/v4-sitewide.js
           test -s web/v4-universe-refine.css
           test -s web/v4-universe-refine.js
+          test -s web/v4-universe-safety.css
           test -s web/v4-universe-safety.js
           test -s web/product-pages.css
           test -s web/product-chrome.css
@@ -71,6 +72,7 @@ jobs:
           grep -q 'v4-final-chrome.js' web/v4-shell.js
           grep -q 'v4-sitewide.js' web/v4-shell.js
           grep -q 'v4-universe-refine.js' web/v4-shell.js
+          grep -q 'v4-universe-safety.css' web/v4-shell.js
           grep -q 'v4-universe-safety.js' web/v4-shell.js
           grep -q 'Cross-scan market evidence' web/v4-universe-refine.js
           grep -q 'Paper qualification is blocked' web/v4-universe-refine.js
