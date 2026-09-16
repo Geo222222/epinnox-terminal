@@ -69,6 +69,11 @@
     universeSafety.defer=true;
     document.body.appendChild(universeSafety);
   }
+  // Pure layout/density corrections come last and do not alter research/execution semantics.
+  if(!document.querySelector('link[href="/static/v4-visual-qa.css"]')){
+    const qaStyle=document.createElement('link');
+    qaStyle.rel='stylesheet';qaStyle.href='/static/v4-visual-qa.css';document.head.appendChild(qaStyle);
+  }
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
   const list=document.getElementById('sessionList');

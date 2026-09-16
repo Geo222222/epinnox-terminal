@@ -50,9 +50,11 @@ jobs:
           test -s web/v4-universe-refine.js
           test -s web/v4-universe-safety.css
           test -s web/v4-universe-safety.js
+          test -s web/v4-visual-qa.css
           test -s web/product-pages.css
           test -s web/product-chrome.css
           test -s web/product-chrome.js
+          test -s web/product-visual-qa.css
           test -s web/scanner.html
           test -s web/sessions.html
           test -s web/research.html
@@ -74,6 +76,11 @@ jobs:
           grep -q 'v4-universe-refine.js' web/v4-shell.js
           grep -q 'v4-universe-safety.css' web/v4-shell.js
           grep -q 'v4-universe-safety.js' web/v4-shell.js
+          grep -q 'v4-visual-qa.css' web/v4-shell.js
+          grep -q 'product-visual-qa.css' web/scanner.css
+          grep -q 'product-visual-qa.css' web/sessions.css
+          grep -q 'product-visual-qa.css' web/research.css
+          grep -q 'product-visual-qa.css' web/strategies.css
           grep -q 'Cross-scan market evidence' web/v4-universe-refine.js
           grep -q 'Paper qualification is blocked' web/v4-universe-refine.js
           grep -q 'WHY THIS CANDIDATE FAILED' web/v4-universe-safety.js
