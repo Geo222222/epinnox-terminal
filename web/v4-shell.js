@@ -27,6 +27,18 @@
     universe.defer=true;
     document.body.appendChild(universe);
   }
+  if(!document.querySelector('link[href="/static/v4-final-chrome.css"]')){
+    const chromeStyle=document.createElement('link');
+    chromeStyle.rel='stylesheet';chromeStyle.href='/static/v4-final-chrome.css';document.head.appendChild(chromeStyle);
+  }
+  if(!document.querySelector('script[src="/static/v4-final-chrome.js"]')){
+    const chrome=document.createElement('script');
+    chrome.src='/static/v4-final-chrome.js';
+    chrome.defer=true;
+    document.body.appendChild(chrome);
+  }
+  // Universe research overrides intentionally load last so research-only context
+  // cannot be restyled back into single-market execution chrome by global polish.
   if(!document.querySelector('link[href="/static/v4-universe-refine.css"]')){
     const universeRefineStyle=document.createElement('link');
     universeRefineStyle.rel='stylesheet';universeRefineStyle.href='/static/v4-universe-refine.css';document.head.appendChild(universeRefineStyle);
@@ -53,7 +65,7 @@
   let selected=sessionStorage.getItem('epinnox.v4.selectedSession')||'';
   let timer=null;
 
-  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
   const symbolLabel=s=>String(s||'—').split(':')[0].replace('/','');
   const activeStates=new Set(['RUNNING','RECOVERED','RECONCILING','RECOVERY_REQUIRED']);
 
