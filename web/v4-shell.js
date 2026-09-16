@@ -7,6 +7,16 @@
     workbench.defer=true;
     document.body.appendChild(workbench);
   }
+  if(!document.querySelector('link[href="/static/v4-command-center.css"]')){
+    const style=document.createElement('link');
+    style.rel='stylesheet';style.href='/static/v4-command-center.css';document.head.appendChild(style);
+  }
+  if(!document.querySelector('script[src="/static/v4-command-center.js"]')){
+    const cc=document.createElement('script');
+    cc.src='/static/v4-command-center.js';
+    cc.defer=true;
+    document.body.appendChild(cc);
+  }
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
   const list=document.getElementById('sessionList');
@@ -41,9 +51,9 @@
       const id=String(s.session_id||'');
       const status=String(s.status||'UNKNOWN');
       const req=s.request||{};
-      const name=s.name||req._terminal_session_name||`${symbolLabel(req.symbol)} ${req.timeframe||''}`.trim();
+      const name=s.name||`${symbolLabel(s.symbol||req.symbol)} ${s.timeframe||req.timeframe||''}`.trim();
       const label=activeStates.has(status)?`P-${String(i+1).padStart(2,'0')}`:`H-${String(i+1).padStart(2,'0')}`;
-      return `<button class="session-card ${selected===id?'active':''}" data-session-id="${esc(id)}" data-state="${esc(status)}" title="${esc(status)} · ${esc(id)}"><span class="session-code">${label} · ${esc(status.replaceAll('_',' '))}</span><strong>${esc(name)}</strong><span class="session-meta">${esc(symbolLabel(req.symbol))} · ${esc(req.timeframe||'—')} · ${esc(req.strategy||'—')}</span></button>`;
+      return `<button class="session-card ${selected===id?'active':''}" data-session-id="${esc(id)}" data-state="${esc(status)}" title="${esc(status)} · ${esc(id)}"><span class="session-code">${label} · ${esc(status.replaceAll('_',' '))}</span><strong>${esc(name)}</strong><span class="session-meta">${esc(symbolLabel(s.symbol||req.symbol))} · ${esc(s.timeframe||req.timeframe||'—')} · ${esc(s.strategy||req.strategy||'—')}</span></button>`;
     }).join('');
     list.querySelectorAll('.session-card').forEach(btn=>btn.addEventListener('click',()=>activateSession(btn.dataset.sessionId)));
   }
