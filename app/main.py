@@ -161,13 +161,14 @@ async def start_paper_live(req: BacktestRequest, request: Request):
     try:
         if paper_live.state.running:
             raise RuntimeError("A paper live session is already running")
-        # An explicit user start supersedes a stale RECOVERY_REQUIRED checkpoint.
-        runtime_store.supersede_active_sessions()
-        return await paper_live.start(
+        result = await paper_live.start(
             req,
             os.getenv("EPINNOX_ONLINE_BASE_URL"),
             request.headers.get("cookie", ""),
         )
+        if result.get("session_id"):
+            runtime_store.supersede_active_sessions(keep_session_id=result["session_id"])
+        return result
     except RuntimeError as exc:
         raise HTTPException(409, str(exc)) from exc
     except Exception as exc:
