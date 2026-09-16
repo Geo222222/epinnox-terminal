@@ -17,6 +17,16 @@
     cc.defer=true;
     document.body.appendChild(cc);
   }
+  if(!document.querySelector('link[href="/static/v4-universe.css"]')){
+    const universeStyle=document.createElement('link');
+    universeStyle.rel='stylesheet';universeStyle.href='/static/v4-universe.css';document.head.appendChild(universeStyle);
+  }
+  if(!document.querySelector('script[src="/static/v4-universe.js"]')){
+    const universe=document.createElement('script');
+    universe.src='/static/v4-universe.js';
+    universe.defer=true;
+    document.body.appendChild(universe);
+  }
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
   const list=document.getElementById('sessionList');
