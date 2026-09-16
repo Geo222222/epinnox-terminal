@@ -18,6 +18,7 @@ jobs:
       - name: Check frontend JavaScript syntax
         run: |
           node --check web/app.js
+          node --check web/chart-workstation-v2.js
           node --check web/persistence.js
           node --check web/scanner.js
           node --check web/sessions.js
@@ -39,7 +40,10 @@ jobs:
           test -s docs/RUNTIME_VALIDATION.md
           test -s docs/TRADINGVIEW_PARITY.md
           test -s docs/SCANNER_V2.md
+          test -s docs/CHART_WORKSTATION_V2.md
           test -s web/workstation.css
+          test -s web/chart-workstation-v2.css
+          test -s web/chart-workstation-v2.js
           test -s web/v4-shell.css
           test -s web/v4-workbench.css
           test -s web/v4-workbench.js
@@ -74,6 +78,11 @@ jobs:
           grep -q 'id="accountSelector"' web/index.html
           grep -q 'Manage presets' web/index.html
           grep -q 'SCANNER' web/index.html
+          grep -q 'chart-workstation-v2.js' web/index.html
+          grep -q 'chart-workstation-v2.css' web/index.html
+          grep -q 'cwExecutionLayer' web/chart-workstation-v2.js
+          grep -q 'cwSeriesGutter' web/chart-workstation-v2.js
+          grep -q 'compactDrawingToolbar' web/chart-workstation-v2.js
           grep -q 'v4-workbench.js' web/v4-shell.js
           grep -q 'v4-command-center.js' web/v4-shell.js
           grep -q 'v4-scanner-v2.js' web/v4-shell.js
