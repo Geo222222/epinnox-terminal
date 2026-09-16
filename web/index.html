@@ -7,60 +7,149 @@
   <link rel="stylesheet" href="/static/styles.css" />
 </head>
 <body>
-  <div class="app">
-    <header>
-      <div><strong>EPINNOX TERMINAL</strong><span class="muted"> Pine parity + composite entries</span></div>
-      <div class="modes"><button class="mode active" data-mode="BACKTEST">BACKTEST</button><button class="mode" data-mode="PAPER">PAPER</button><button class="mode" data-mode="LIVE">LIVE</button></div>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <div class="brand-mark">E</div>
+        <div>
+          <div class="brand-name">EPINNOX TERMINAL</div>
+          <div class="brand-subtitle">Research · Paper · Execution</div>
+        </div>
+      </div>
+      <div class="topbar-center">
+        <span class="connection-dot"></span>
+        <span id="connectionText">HTX market connected</span>
+      </div>
+      <div class="modes" aria-label="Operating mode">
+        <button class="mode active" data-mode="BACKTEST"><span class="mode-dot"></span>Backtest</button>
+        <button class="mode" data-mode="PAPER"><span class="mode-dot"></span>Paper</button>
+        <button class="mode" data-mode="LIVE"><span class="mode-dot"></span>Live</button>
+      </div>
     </header>
-    <section class="toolbar">
-      <select id="symbol"></select>
-      <select id="timeframe"><option>1m</option><option>5m</option><option>15m</option><option>30m</option></select>
-      <label>Primary <select id="strategy"></select></label>
-      <label>Confirm 1 <select id="confirm1"></select></label>
-      <label>Confirm 2 <select id="confirm2"></select></label>
-      <label>Policy <select id="confirmationPolicy"></select></label>
-      <label>Required <input id="confirmationRequired" type="number" value="2" min="1" max="3" /></label>
-      <label>Window <input id="confirmationWindow" type="number" value="1" min="1" max="100" /></label>
-      <select id="direction"><option>Both</option><option>Long Only</option><option>Short Only</option></select>
-      <label>Bars <input id="bars" type="number" value="1000" min="100" max="5000" step="100" /></label>
-      <label>Balance <input id="balance" type="number" value="100000" step="100" /></label>
-      <label>Lev <input id="leverage" type="number" value="1" min="1" max="200" /></label>
-      <label>Alloc % <input id="allocation" type="number" value="5" min="0.1" max="100" step="0.1" /></label>
-      <label>Pyramid <input id="pyramiding" type="number" value="1" min="1" max="20" /></label>
-      <button id="run">Run backtest</button>
-      <button id="paperStart" disabled>Start paper live</button>
-      <button id="paperStop" disabled>Stop paper</button>
+
+    <section class="market-strip">
+      <div class="market-identity">
+        <select id="symbol" class="symbol-select"></select>
+        <div class="market-price-block">
+          <span id="quotePrice" class="market-price">—</span>
+          <span id="quoteChange" class="market-change">—</span>
+        </div>
+      </div>
+      <div class="timeframe-group">
+        <span class="control-label">TIMEFRAME</span>
+        <select id="timeframe" class="compact-select"><option>1m</option><option>5m</option><option>15m</option><option>30m</option></select>
+      </div>
+      <div class="market-meta">
+        <div><span>Source</span><b>HTX</b></div>
+        <div><span>Engine</span><b>Sequential replay</b></div>
+        <div><span>Mode</span><b id="modeText">BACKTEST</b></div>
+      </div>
     </section>
-    <main>
-      <section class="chart-panel">
-        <div id="chart"></div>
-        <div id="indicator"></div>
+
+    <section class="strategy-composer">
+      <div class="composer-heading">
+        <div>
+          <span class="eyebrow">ENTRY MODEL</span>
+          <h2>Strategy Composer</h2>
+        </div>
+        <div class="composer-actions">
+          <button id="run" class="primary-action">Run backtest</button>
+          <button id="paperStart" class="paper-action" disabled>Start paper live</button>
+          <button id="paperStop" class="danger-action" disabled>Stop paper</button>
+        </div>
+      </div>
+      <div class="composer-grid">
+        <label class="field field-wide"><span>Primary strategy</span><select id="strategy"></select></label>
+        <label class="field field-wide"><span>Confirmation 1</span><select id="confirm1"></select></label>
+        <label class="field field-wide"><span>Confirmation 2</span><select id="confirm2"></select></label>
+        <label class="field"><span>Policy</span><select id="confirmationPolicy"></select></label>
+        <label class="field"><span>Required</span><input id="confirmationRequired" type="number" value="2" min="1" max="3" /></label>
+        <label class="field"><span>Window</span><div class="input-suffix"><input id="confirmationWindow" type="number" value="1" min="1" max="100" /><em>bars</em></div></label>
+        <label class="field"><span>Direction</span><select id="direction"><option>Both</option><option>Long Only</option><option>Short Only</option></select></label>
+        <label class="field"><span>History</span><div class="input-suffix"><input id="bars" type="number" value="1000" min="100" max="5000" step="100" /><em>bars</em></div></label>
+        <label class="field"><span>Balance</span><div class="input-prefix"><em>$</em><input id="balance" type="number" value="100000" step="100" /></div></label>
+        <label class="field"><span>Leverage</span><div class="input-suffix"><input id="leverage" type="number" value="1" min="1" max="200" /><em>×</em></div></label>
+        <label class="field"><span>Allocation</span><div class="input-suffix"><input id="allocation" type="number" value="5" min="0.1" max="100" step="0.1" /><em>%</em></div></label>
+        <label class="field"><span>Pyramiding</span><input id="pyramiding" type="number" value="1" min="1" max="20" /></label>
+      </div>
+    </section>
+
+    <main class="workspace">
+      <section class="chart-workspace">
+        <div class="chart-toolbar">
+          <div class="chart-title-group">
+            <div class="symbol-badge">ETH</div>
+            <div>
+              <div id="chartTitle" class="chart-title">ETH/USDT:USDT · 1m</div>
+              <div id="entryModelSummary" class="chart-subtitle">Supertrend · Single</div>
+            </div>
+          </div>
+          <div class="chart-legend">
+            <span><i class="legend-dot entry"></i>Entry</span>
+            <span><i class="legend-line avg"></i>Average</span>
+            <span><i class="legend-line be"></i>Break-even</span>
+            <span><i class="legend-line target"></i>Target</span>
+            <span><i class="legend-line liq"></i>Liquidation</span>
+          </div>
+        </div>
+        <div class="chart-stage">
+          <div id="chart"></div>
+          <div class="pane-label">INDICATOR</div>
+          <div id="indicator"></div>
+        </div>
       </section>
-      <aside>
-        <h3>Exit engine</h3>
-        <label>Entry fee % <input id="entryFee" type="number" value="0.05" step="0.001" /></label>
-        <label>Exit fee % <input id="exitFee" type="number" value="0.05" step="0.001" /></label>
-        <label>Extra cost % <input id="extraCost" type="number" value="0" step="0.001" /></label>
-        <label>Net target % <input id="netTarget" type="number" value="0.01" step="0.001" /></label>
-        <label>Referral % <input id="referral" type="number" value="30" step="1" /></label>
-        <label>Maint. margin % <input id="maintenance" type="number" value="0.4" step="0.1" /></label>
-        <label>Max bars <input id="maxBars" type="number" placeholder="unlimited" /></label>
-        <label>Stop % <input id="stopLoss" type="number" placeholder="none" step="0.1" /></label>
-        <details><summary>Manual primary-strategy parameters</summary><p class="muted">Leave blank to use automatic timeframe presets. Confirmations use their own automatic presets.</p><textarea id="manualParams" rows="4" placeholder='{"atr":7,"factor":2.0}'></textarea></details>
-        <h3>Position</h3>
-        <div id="openPosition" class="open-card"></div>
-        <h3>Paper live</h3>
-        <div id="paperState" class="open-card">Not running.</div>
+
+      <aside class="inspector">
+        <div class="inspector-section">
+          <div class="section-heading"><span class="eyebrow">POSITION</span><span id="positionStatus" class="status-pill neutral">FLAT</span></div>
+          <div id="openPosition" class="position-card">No open position</div>
+        </div>
+
+        <div class="inspector-section">
+          <div class="section-heading"><span class="eyebrow">EXIT ENGINE</span><span class="mini-tag">fee-aware</span></div>
+          <div class="settings-grid">
+            <label class="setting-row"><span>Entry fee</span><div class="input-suffix"><input id="entryFee" type="number" value="0.05" step="0.001" /><em>%</em></div></label>
+            <label class="setting-row"><span>Exit fee</span><div class="input-suffix"><input id="exitFee" type="number" value="0.05" step="0.001" /><em>%</em></div></label>
+            <label class="setting-row"><span>Extra cost</span><div class="input-suffix"><input id="extraCost" type="number" value="0" step="0.001" /><em>%</em></div></label>
+            <label class="setting-row highlight-setting"><span>Net target</span><div class="input-suffix"><input id="netTarget" type="number" value="0.01" step="0.001" /><em>%</em></div></label>
+            <label class="setting-row"><span>Referral share</span><div class="input-suffix"><input id="referral" type="number" value="30" step="1" /><em>%</em></div></label>
+            <label class="setting-row"><span>Maint. margin</span><div class="input-suffix"><input id="maintenance" type="number" value="0.4" step="0.1" /><em>%</em></div></label>
+            <label class="setting-row"><span>Max bars</span><input id="maxBars" type="number" placeholder="Unlimited" /></label>
+            <label class="setting-row"><span>Stop loss</span><div class="input-suffix"><input id="stopLoss" type="number" placeholder="None" step="0.1" /><em>%</em></div></label>
+          </div>
+          <details class="advanced-settings"><summary>Manual primary-strategy parameters</summary><p class="muted">Leave blank for automatic timeframe presets. Confirmations retain their automatic presets.</p><textarea id="manualParams" rows="4" placeholder='{"atr":7,"factor":2.0}'></textarea></details>
+        </div>
+
+        <div class="inspector-section paper-section">
+          <div class="section-heading"><span class="eyebrow">PAPER LIVE</span><span class="status-pill" id="paperBadge">OFF</span></div>
+          <div id="paperState" class="paper-card">Not running.</div>
+        </div>
       </aside>
     </main>
-    <section class="tabs">
-      <div class="tabbar"><button data-tab="tester" class="active">Strategy Tester</button><button data-tab="trades">List of Trades</button><button data-tab="economics">Economics</button><button data-tab="paperEvents">Paper Events</button></div>
+
+    <section class="bottom-dock">
+      <div class="dock-header">
+        <div class="tabbar">
+          <button data-tab="tester" class="active">Overview</button>
+          <button data-tab="trades">Trades</button>
+          <button data-tab="economics">Economics</button>
+          <button data-tab="paperEvents">Paper Events</button>
+        </div>
+        <div class="dock-summary">
+          <span id="dockTrades">0 trades</span>
+          <span id="dockPnl">P&L —</span>
+        </div>
+      </div>
       <div id="tester" class="tab"></div>
       <div id="trades" class="tab hidden"><div class="table-wrap"><table><thead><tr><th>#</th><th>Side</th><th>Confirmations</th><th>Layers</th><th>Entry</th><th>Exit</th><th>Net P&L</th><th>Entry fee</th><th>Exit fee</th><th>Total fee</th><th>Referral</th><th>Lev</th><th>Margin</th><th>MAE</th><th>MFE</th><th>Bars</th><th>Reason</th></tr></thead><tbody id="tradeRows"></tbody></table></div></div>
       <div id="economics" class="tab hidden"></div>
       <div id="paperEvents" class="tab hidden"><div class="table-wrap"><table><thead><tr><th>Time</th><th>Kind</th><th>Detail</th></tr></thead><tbody id="paperEventRows"></tbody></table></div></div>
     </section>
-    <footer id="status">Ready.</footer>
+
+    <footer class="statusbar">
+      <div class="status-left"><span class="status-led"></span><span id="status">Ready.</span></div>
+      <div class="status-right"><span>Epinnox Terminal</span><span class="separator">•</span><span>HTX linear futures</span></div>
+    </footer>
   </div>
   <script type="module" src="/static/app.js"></script>
 </body>
