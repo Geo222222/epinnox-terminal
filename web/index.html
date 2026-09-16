@@ -11,15 +11,9 @@
     <header class="topbar">
       <div class="brand-block">
         <div class="brand-mark">E</div>
-        <div>
-          <div class="brand-name">EPINNOX TERMINAL</div>
-          <div class="brand-subtitle">Research · Paper · Execution</div>
-        </div>
+        <div><div class="brand-name">EPINNOX TERMINAL</div><div class="brand-subtitle">Strategy · Simulation · Execution</div></div>
       </div>
-      <div class="topbar-center">
-        <span class="connection-dot"></span>
-        <span id="connectionText">HTX market connected</span>
-      </div>
+      <div class="topbar-center"><span class="connection-dot"></span><span id="connectionText">HTX market connected</span></div>
       <div class="modes" aria-label="Operating mode">
         <button class="mode active" data-mode="BACKTEST"><span class="mode-dot"></span>Backtest</button>
         <button class="mode" data-mode="PAPER"><span class="mode-dot"></span>Paper</button>
@@ -30,47 +24,14 @@
     <section class="market-strip">
       <div class="market-identity">
         <select id="symbol" class="symbol-select"></select>
-        <div class="market-price-block">
-          <span id="quotePrice" class="market-price">—</span>
-          <span id="quoteChange" class="market-change">—</span>
-        </div>
+        <div class="market-price-block"><span id="quotePrice" class="market-price">—</span><span id="quoteChange" class="market-change">—</span></div>
       </div>
-      <div class="timeframe-group">
-        <span class="control-label">TIMEFRAME</span>
-        <select id="timeframe" class="compact-select"><option>1m</option><option>5m</option><option>15m</option><option>30m</option></select>
+      <div class="timeframes" aria-label="Timeframe">
+        <button class="tf" data-tf="1m">1m</button><button class="tf active" data-tf="5m">5m</button><button class="tf" data-tf="15m">15m</button><button class="tf" data-tf="30m">30m</button>
+        <select id="timeframe" class="sr-only"><option>1m</option><option selected>5m</option><option>15m</option><option>30m</option></select>
       </div>
       <div class="market-meta">
-        <div><span>Source</span><b>HTX</b></div>
-        <div><span>Engine</span><b>Sequential replay</b></div>
-        <div><span>Mode</span><b id="modeText">BACKTEST</b></div>
-      </div>
-    </section>
-
-    <section class="strategy-composer">
-      <div class="composer-heading">
-        <div>
-          <span class="eyebrow">ENTRY MODEL</span>
-          <h2>Strategy Composer</h2>
-        </div>
-        <div class="composer-actions">
-          <button id="run" class="primary-action">Run backtest</button>
-          <button id="paperStart" class="paper-action" disabled>Start paper live</button>
-          <button id="paperStop" class="danger-action" disabled>Stop paper</button>
-        </div>
-      </div>
-      <div class="composer-grid">
-        <label class="field field-wide"><span>Primary strategy</span><select id="strategy"></select></label>
-        <label class="field field-wide"><span>Confirmation 1</span><select id="confirm1"></select></label>
-        <label class="field field-wide"><span>Confirmation 2</span><select id="confirm2"></select></label>
-        <label class="field"><span>Policy</span><select id="confirmationPolicy"></select></label>
-        <label class="field"><span>Required</span><input id="confirmationRequired" type="number" value="2" min="1" max="3" /></label>
-        <label class="field"><span>Window</span><div class="input-suffix"><input id="confirmationWindow" type="number" value="1" min="1" max="100" /><em>bars</em></div></label>
-        <label class="field"><span>Direction</span><select id="direction"><option>Both</option><option>Long Only</option><option>Short Only</option></select></label>
-        <label class="field"><span>History</span><div class="input-suffix"><input id="bars" type="number" value="1000" min="100" max="5000" step="100" /><em>bars</em></div></label>
-        <label class="field"><span>Balance</span><div class="input-prefix"><em>$</em><input id="balance" type="number" value="100000" step="100" /></div></label>
-        <label class="field"><span>Leverage</span><div class="input-suffix"><input id="leverage" type="number" value="1" min="1" max="200" /><em>×</em></div></label>
-        <label class="field"><span>Allocation</span><div class="input-suffix"><input id="allocation" type="number" value="5" min="0.1" max="100" step="0.1" /><em>%</em></div></label>
-        <label class="field"><span>Pyramiding</span><input id="pyramiding" type="number" value="1" min="1" max="20" /></label>
+        <div><span>Venue</span><b>HTX</b></div><div><span>Engine</span><b>Sequential</b></div><div><span>Environment</span><b id="modeText">BACKTEST</b></div>
       </div>
     </section>
 
@@ -79,66 +40,90 @@
         <div class="chart-toolbar">
           <div class="chart-title-group">
             <div class="symbol-badge">ETH</div>
-            <div>
-              <div id="chartTitle" class="chart-title">ETH/USDT:USDT · 1m</div>
-              <div id="entryModelSummary" class="chart-subtitle">Supertrend · Single</div>
-            </div>
+            <div><div id="chartTitle" class="chart-title">ETH/USDT:USDT · 5m</div><div id="entryModelSummary" class="chart-subtitle">Supertrend · Single</div></div>
           </div>
-          <div class="chart-legend">
-            <span><i class="legend-dot entry"></i>Entry</span>
-            <span><i class="legend-line avg"></i>Average</span>
-            <span><i class="legend-line be"></i>Break-even</span>
-            <span><i class="legend-line target"></i>Target</span>
-            <span><i class="legend-line liq"></i>Liquidation</span>
+          <div class="chart-actions">
+            <button id="fitChart" class="chart-tool">Fit</button>
+            <button id="toggleIndicator" class="chart-tool">Indicator</button>
+            <button id="openStrategyTab" class="chart-tool emphasis">Strategy settings</button>
           </div>
+        </div>
+        <div class="chart-legend">
+          <span><i class="legend-dot entry"></i>Entry</span><span><i class="legend-line avg"></i>Average</span><span><i class="legend-line be"></i>Break-even</span><span><i class="legend-line target"></i>Target</span><span><i class="legend-line liq"></i>Liquidation</span>
         </div>
         <div class="chart-stage">
           <div id="chart"></div>
-          <div class="pane-label">INDICATOR</div>
-          <div id="indicator"></div>
+          <div id="indicatorPane" class="indicator-pane"><div class="pane-label">INDICATOR</div><div id="indicator"></div></div>
+          <div id="recalcOverlay" class="recalc-overlay hidden"><span class="spinner"></span><span>Recalculating strategy…</span></div>
         </div>
       </section>
 
       <aside class="inspector">
-        <div class="inspector-section">
-          <div class="section-heading"><span class="eyebrow">POSITION</span><span id="positionStatus" class="status-pill neutral">FLAT</span></div>
-          <div id="openPosition" class="position-card">No open position</div>
+        <div class="inspector-tabs">
+          <button class="inspector-tab active" data-inspector-tab="positionPanel">Position</button>
+          <button class="inspector-tab" data-inspector-tab="strategyPanel">Strategy</button>
         </div>
 
-        <div class="inspector-section">
-          <div class="section-heading"><span class="eyebrow">EXIT ENGINE</span><span class="mini-tag">fee-aware</span></div>
-          <div class="settings-grid">
-            <label class="setting-row"><span>Entry fee</span><div class="input-suffix"><input id="entryFee" type="number" value="0.05" step="0.001" /><em>%</em></div></label>
-            <label class="setting-row"><span>Exit fee</span><div class="input-suffix"><input id="exitFee" type="number" value="0.05" step="0.001" /><em>%</em></div></label>
-            <label class="setting-row"><span>Extra cost</span><div class="input-suffix"><input id="extraCost" type="number" value="0" step="0.001" /><em>%</em></div></label>
-            <label class="setting-row highlight-setting"><span>Net target</span><div class="input-suffix"><input id="netTarget" type="number" value="0.01" step="0.001" /><em>%</em></div></label>
-            <label class="setting-row"><span>Referral share</span><div class="input-suffix"><input id="referral" type="number" value="30" step="1" /><em>%</em></div></label>
-            <label class="setting-row"><span>Maint. margin</span><div class="input-suffix"><input id="maintenance" type="number" value="0.4" step="0.1" /><em>%</em></div></label>
-            <label class="setting-row"><span>Max bars</span><input id="maxBars" type="number" placeholder="Unlimited" /></label>
-            <label class="setting-row"><span>Stop loss</span><div class="input-suffix"><input id="stopLoss" type="number" placeholder="None" step="0.1" /><em>%</em></div></label>
+        <div id="positionPanel" class="inspector-panel active">
+          <div class="inspector-section">
+            <div class="section-heading"><span class="eyebrow">POSITION</span><span id="positionStatus" class="status-pill neutral">FLAT</span></div>
+            <div id="openPosition" class="position-card">No open position</div>
           </div>
-          <details class="advanced-settings"><summary>Manual primary-strategy parameters</summary><p class="muted">Leave blank for automatic timeframe presets. Confirmations retain their automatic presets.</p><textarea id="manualParams" rows="4" placeholder='{"atr":7,"factor":2.0}'></textarea></details>
+          <div class="inspector-section account-glance">
+            <div class="section-heading"><span class="eyebrow">ACCOUNT MODEL</span><span class="mini-tag">simulation</span></div>
+            <div class="glance-grid"><div><span>Balance</span><b id="glanceBalance">$100,000</b></div><div><span>Leverage</span><b id="glanceLeverage">1×</b></div><div><span>Allocation</span><b id="glanceAllocation">5%</b></div><div><span>Layer notional</span><b id="glanceNotional">$5,000</b></div></div>
+          </div>
+          <div class="inspector-section paper-section">
+            <div class="section-heading"><span class="eyebrow">PAPER LIVE</span><span class="status-pill neutral" id="paperBadge">OFF</span></div>
+            <div id="paperState" class="paper-card">Not running.</div>
+            <div class="paper-actions"><button id="paperStart" class="paper-action" disabled>Start paper strategy</button><button id="paperStop" class="danger-action" disabled>Stop</button></div>
+          </div>
         </div>
 
-        <div class="inspector-section paper-section">
-          <div class="section-heading"><span class="eyebrow">PAPER LIVE</span><span class="status-pill" id="paperBadge">OFF</span></div>
-          <div id="paperState" class="paper-card">Not running.</div>
+        <div id="strategyPanel" class="inspector-panel">
+          <div class="inspector-section">
+            <div class="section-heading"><span class="eyebrow">ENTRY MODEL</span><span id="autoApplyBadge" class="status-pill long">AUTO APPLY</span></div>
+            <div class="settings-grid">
+              <label class="stack-setting"><span>Primary strategy</span><select id="strategy"></select></label>
+              <label class="stack-setting"><span>Confirmation 1</span><select id="confirm1"></select></label>
+              <label class="stack-setting"><span>Confirmation 2</span><select id="confirm2"></select></label>
+              <label class="stack-setting"><span>Policy</span><select id="confirmationPolicy"></select></label>
+              <div class="two-col"><label class="stack-setting"><span>Required</span><input id="confirmationRequired" type="number" value="2" min="1" max="3" /></label><label class="stack-setting"><span>Window (bars)</span><input id="confirmationWindow" type="number" value="1" min="1" max="100" /></label></div>
+              <label class="stack-setting"><span>Direction</span><select id="direction"><option>Both</option><option>Long Only</option><option>Short Only</option></select></label>
+            </div>
+          </div>
+          <div class="inspector-section">
+            <div class="section-heading"><span class="eyebrow">ACCOUNT & SIZING</span></div>
+            <div class="settings-grid">
+              <label class="setting-row"><span>History</span><div class="input-suffix"><input id="bars" type="number" value="1000" min="100" max="5000" step="100" /><em>bars</em></div></label>
+              <label class="setting-row"><span>Balance</span><div class="input-prefix"><em>$</em><input id="balance" type="number" value="100000" step="100" /></div></label>
+              <label class="setting-row"><span>Leverage</span><div class="input-suffix"><input id="leverage" type="number" value="1" min="1" max="200" /><em>×</em></div></label>
+              <label class="setting-row"><span>Allocation</span><div class="input-suffix"><input id="allocation" type="number" value="5" min="0.1" max="100" step="0.1" /><em>%</em></div></label>
+              <label class="setting-row"><span>Pyramiding</span><input id="pyramiding" type="number" value="1" min="1" max="20" /></label>
+            </div>
+          </div>
+          <div class="inspector-section">
+            <div class="section-heading"><span class="eyebrow">EXIT ENGINE</span><span class="mini-tag">fee-aware</span></div>
+            <div class="settings-grid">
+              <label class="setting-row"><span>Entry fee</span><div class="input-suffix"><input id="entryFee" type="number" value="0.05" step="0.001" /><em>%</em></div></label>
+              <label class="setting-row"><span>Exit fee</span><div class="input-suffix"><input id="exitFee" type="number" value="0.05" step="0.001" /><em>%</em></div></label>
+              <label class="setting-row"><span>Extra cost</span><div class="input-suffix"><input id="extraCost" type="number" value="0" step="0.001" /><em>%</em></div></label>
+              <label class="setting-row highlight-setting"><span>Net target</span><div class="input-suffix"><input id="netTarget" type="number" value="0.01" step="0.001" /><em>%</em></div></label>
+              <label class="setting-row"><span>Referral share</span><div class="input-suffix"><input id="referral" type="number" value="30" step="1" /><em>%</em></div></label>
+              <label class="setting-row"><span>Maint. margin</span><div class="input-suffix"><input id="maintenance" type="number" value="0.4" step="0.1" /><em>%</em></div></label>
+              <label class="setting-row"><span>Max bars</span><input id="maxBars" type="number" placeholder="Unlimited" /></label>
+              <label class="setting-row"><span>Stop loss</span><div class="input-suffix"><input id="stopLoss" type="number" placeholder="None" step="0.1" /><em>%</em></div></label>
+            </div>
+            <details class="advanced-settings"><summary>Manual strategy parameters</summary><p class="muted">Leave blank for automatic timeframe presets.</p><textarea id="manualParams" rows="4" placeholder='{"atr":7,"factor":2.0}'></textarea></details>
+          </div>
         </div>
       </aside>
     </main>
 
     <section class="bottom-dock">
       <div class="dock-header">
-        <div class="tabbar">
-          <button data-tab="tester" class="active">Overview</button>
-          <button data-tab="trades">Trades</button>
-          <button data-tab="economics">Economics</button>
-          <button data-tab="paperEvents">Paper Events</button>
-        </div>
-        <div class="dock-summary">
-          <span id="dockTrades">0 trades</span>
-          <span id="dockPnl">P&L —</span>
-        </div>
+        <div class="tabbar"><button data-tab="tester" class="active">Overview</button><button data-tab="trades">Trades</button><button data-tab="economics">Economics</button><button data-tab="paperEvents">Paper Events</button></div>
+        <div class="dock-summary"><span id="dockTrades">0 trades</span><span id="dockPnl">P&L —</span></div>
       </div>
       <div id="tester" class="tab"></div>
       <div id="trades" class="tab hidden"><div class="table-wrap"><table><thead><tr><th>#</th><th>Side</th><th>Confirmations</th><th>Layers</th><th>Entry</th><th>Exit</th><th>Net P&L</th><th>Entry fee</th><th>Exit fee</th><th>Total fee</th><th>Referral</th><th>Lev</th><th>Margin</th><th>MAE</th><th>MFE</th><th>Bars</th><th>Reason</th></tr></thead><tbody id="tradeRows"></tbody></table></div></div>
@@ -146,10 +131,7 @@
       <div id="paperEvents" class="tab hidden"><div class="table-wrap"><table><thead><tr><th>Time</th><th>Kind</th><th>Detail</th></tr></thead><tbody id="paperEventRows"></tbody></table></div></div>
     </section>
 
-    <footer class="statusbar">
-      <div class="status-left"><span class="status-led"></span><span id="status">Ready.</span></div>
-      <div class="status-right"><span>Epinnox Terminal</span><span class="separator">•</span><span>HTX linear futures</span></div>
-    </footer>
+    <footer class="statusbar"><div class="status-left"><span class="status-led"></span><span id="status">Ready.</span></div><div class="status-right"><span id="autoStatus">Backtest auto-apply enabled</span><span class="separator">•</span><span>HTX linear futures</span></div></footer>
   </div>
   <script type="module" src="/static/app.js"></script>
 </body>
