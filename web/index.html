@@ -43,13 +43,14 @@
             <div><div id="chartTitle" class="chart-title">ETH/USDT:USDT · 5m</div><div id="entryModelSummary" class="chart-subtitle">Supertrend · Single</div></div>
           </div>
           <div class="chart-actions">
+            <span id="profileBadge" class="mini-tag">TradingView Parity</span>
             <button id="fitChart" class="chart-tool">Fit</button>
             <button id="toggleIndicator" class="chart-tool">Indicator</button>
             <button id="openStrategyTab" class="chart-tool emphasis">Strategy settings</button>
           </div>
         </div>
         <div class="chart-legend">
-          <span><i class="legend-dot entry"></i>Entry</span><span><i class="legend-line avg"></i>Average</span><span><i class="legend-line be"></i>Break-even</span><span><i class="legend-line target"></i>Target</span><span><i class="legend-line liq"></i>Liquidation</span>
+          <span><i class="legend-dot entry"></i>Entry</span><span><i class="legend-line avg"></i>Average</span><span><i class="legend-line be"></i>Break-even</span><span><i class="legend-line target"></i>Target</span><span><i class="legend-line liq"></i>Estimated liquidation</span>
         </div>
         <div class="chart-stage">
           <div id="chart"></div>
@@ -73,6 +74,10 @@
             <div class="section-heading"><span class="eyebrow">ACCOUNT MODEL</span><span class="mini-tag">simulation</span></div>
             <div class="glance-grid"><div><span>Balance</span><b id="glanceBalance">$100,000</b></div><div><span>Leverage</span><b id="glanceLeverage">1×</b></div><div><span>Allocation</span><b id="glanceAllocation">5%</b></div><div><span>Layer notional</span><b id="glanceNotional">$5,000</b></div></div>
           </div>
+          <div class="inspector-section">
+            <div class="section-heading"><span class="eyebrow">BACKTEST WINDOW</span><span id="windowCandles" class="mini-tag">— candles</span></div>
+            <div id="windowSummary" class="paper-card">Waiting for backtest.</div>
+          </div>
           <div class="inspector-section paper-section">
             <div class="section-heading"><span class="eyebrow">PAPER LIVE</span><span class="status-pill neutral" id="paperBadge">OFF</span></div>
             <div id="paperState" class="paper-card">Not running.</div>
@@ -82,7 +87,16 @@
 
         <div id="strategyPanel" class="inspector-panel">
           <div class="inspector-section">
-            <div class="section-heading"><span class="eyebrow">ENTRY MODEL</span><span id="autoApplyBadge" class="status-pill long">AUTO APPLY</span></div>
+            <div class="section-heading"><span class="eyebrow">BACKTEST MODEL</span><span id="autoApplyBadge" class="status-pill long">AUTO APPLY</span></div>
+            <div class="settings-grid">
+              <label class="stack-setting"><span>Profile</span><select id="backtestProfile"><option>TradingView Parity</option><option>Simplified Isolated</option></select></label>
+              <p id="profileHelp" class="muted compact-help">TradingView Parity disables Terminal's custom liquidation estimate and funding so strategy behavior can be compared first.</p>
+              <div class="two-col"><label class="stack-setting"><span>Start</span><input id="startDate" type="datetime-local" /></label><label class="stack-setting"><span>End</span><input id="endDate" type="datetime-local" /></label></div>
+              <p class="muted compact-help">Set both dates to reproduce the same TradingView test window. Leave both blank to use the latest History bars.</p>
+            </div>
+          </div>
+          <div class="inspector-section">
+            <div class="section-heading"><span class="eyebrow">ENTRY MODEL</span></div>
             <div class="settings-grid">
               <label class="stack-setting"><span>Primary strategy</span><select id="strategy"></select></label>
               <label class="stack-setting"><span>Confirmation 1</span><select id="confirm1"></select></label>
@@ -95,7 +109,7 @@
           <div class="inspector-section">
             <div class="section-heading"><span class="eyebrow">ACCOUNT & SIZING</span></div>
             <div class="settings-grid">
-              <label class="setting-row"><span>History</span><div class="input-suffix"><input id="bars" type="number" value="1000" min="100" max="5000" step="100" /><em>bars</em></div></label>
+              <label class="setting-row"><span>History</span><div class="input-suffix"><input id="bars" type="number" value="1000" min="100" max="50000" step="100" /><em>bars</em></div></label>
               <label class="setting-row"><span>Balance</span><div class="input-prefix"><em>$</em><input id="balance" type="number" value="100000" step="100" /></div></label>
               <label class="setting-row"><span>Leverage</span><div class="input-suffix"><input id="leverage" type="number" value="1" min="1" max="200" /><em>×</em></div></label>
               <label class="setting-row"><span>Allocation</span><div class="input-suffix"><input id="allocation" type="number" value="5" min="0.1" max="100" step="0.1" /><em>%</em></div></label>
@@ -126,7 +140,10 @@
         <div class="dock-summary"><span id="dockTrades">0 trades</span><span id="dockPnl">P&L —</span></div>
       </div>
       <div id="tester" class="tab"></div>
-      <div id="trades" class="tab hidden"><div class="table-wrap"><table><thead><tr><th>#</th><th>Side</th><th>Confirmations</th><th>Layers</th><th>Entry</th><th>Exit</th><th>Net P&L</th><th>Entry fee</th><th>Exit fee</th><th>Total fee</th><th>Referral</th><th>Lev</th><th>Margin</th><th>MAE</th><th>MFE</th><th>Bars</th><th>Reason</th></tr></thead><tbody id="tradeRows"></tbody></table></div></div>
+      <div id="trades" class="tab hidden">
+        <div class="trade-audit" id="tradeAudit"><span class="muted">Select a liquidation trade to inspect the exit receipt.</span></div>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Side</th><th>Confirmations</th><th>Layers</th><th>Entry</th><th>Exit</th><th>Net P&L</th><th>Entry fee</th><th>Exit fee</th><th>Total fee</th><th>Referral</th><th>Lev</th><th>Margin</th><th>MAE</th><th>MFE</th><th>Bars</th><th>Reason</th><th>Audit</th></tr></thead><tbody id="tradeRows"></tbody></table></div>
+      </div>
       <div id="economics" class="tab hidden"></div>
       <div id="paperEvents" class="tab hidden"><div class="table-wrap"><table><thead><tr><th>Time</th><th>Kind</th><th>Detail</th></tr></thead><tbody id="paperEventRows"></tbody></table></div></div>
     </section>
