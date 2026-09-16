@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sessions · Epinnox Terminal</title>
+  <link rel="icon" type="image/webp" href="/static/assets/epinnox-mark.webp" />
+  <link rel="stylesheet" href="/static/product-pages.css" />
+  <link rel="stylesheet" href="/static/sessions.css" />
+</head>
+<body>
+  <div class="product-shell">
+    <header class="product-header">
+      <a class="product-brand" href="/"><img src="/static/assets/epinnox-mark.webp" alt="Epinnox" /><div><strong>EPINNOX TERMINAL</strong><span>Capital intelligence · Serving Benjamin</span></div></a>
+      <div class="product-health"><i></i><span id="runtimeHealth">Runtime connected</span></div>
+      <div class="product-mode"><span class="product-badge live">Paper operations</span><span class="product-badge">Live locked</span></div>
+    </header>
+    <div class="product-layout">
+      <aside class="product-sidebar">
+        <div class="nav-label">PRIMARY</div>
+        <nav class="product-nav">
+          <a href="/"><span class="nav-icon">CH</span><span class="nav-copy"><strong>Terminal</strong><span>Chart & backtest</span></span></a>
+          <a href="/scanner"><span class="nav-icon">SC</span><span class="nav-copy"><strong>Scanner</strong><span>Opportunity discovery</span></span></a>
+          <a class="active" href="/sessions"><span class="nav-icon">PS</span><span class="nav-copy"><strong>Sessions</strong><span>Paper operations</span></span></a>
+          <a href="/research"><span class="nav-icon">EV</span><span class="nav-copy"><strong>Research</strong><span>Evidence library</span></span></a>
+          <a href="/strategies"><span class="nav-icon">ST</span><span class="nav-copy"><strong>Strategies</strong><span>Models & presets</span></span></a>
+        </nav>
+        <div class="sidebar-status"><strong>Operational rule</strong><br />One active strategy owner per account + instrument.</div>
+      </aside>
+
+      <main class="product-main sessions-page">
+        <div class="page-head">
+          <div><span class="page-kicker">PAPER OPERATIONS</span><h1>Session control</h1><p>Monitor every durable paper strategy session, inspect its latest evidence and position state, and recover or stop a runtime without hiding the operational context.</p></div>
+          <div class="page-actions"><a class="ep-btn" href="/?mode=PAPER">Open terminal</a><button id="refreshSessions" class="ep-btn primary">Refresh runtime</button></div>
+        </div>
+
+        <section class="kpi-grid">
+          <div class="kpi"><span>Active sessions</span><b id="kpiActive">—</b><small>recoverable or running</small></div>
+          <div class="kpi"><span>Running now</span><b id="kpiRunning">—</b><small>in-process runners</small></div>
+          <div class="kpi"><span>Recovery required</span><b id="kpiRecovery">—</b><small>fail-closed state</small></div>
+          <div class="kpi"><span>Execution authority</span><b id="kpiAuthority" class="session-authority">—</b><small>Epinnox Online</small></div>
+        </section>
+
+        <div class="session-workbench">
+          <section class="panel session-list-panel">
+            <div class="panel-head"><div class="panel-title"><h2>SESSION REGISTRY</h2><span id="sessionRegistryMeta">durable SQLite runtime</span></div><div class="filter-row"><select id="sessionFilter" class="ep-select"><option value="ALL">All states</option><option value="ACTIVE">Active only</option><option value="RECOVERY_REQUIRED">Recovery required</option><option value="STOPPED">Stopped</option></select></div></div>
+            <div id="sessionRows" class="session-rows"><div class="empty-state"><div><strong>Loading session registry</strong><p>Durable paper sessions will appear here.</p></div></div></div>
+          </section>
+
+          <aside class="panel session-detail-panel">
+            <div class="panel-head"><div class="panel-title"><h2>SESSION EVIDENCE</h2><span id="detailSessionId">select a session</span></div></div>
+            <div id="sessionDetail" class="session-detail"><div class="empty-state"><div><strong>No session selected</strong><p>Select a runtime to inspect ownership, strategy context, signal state, position and event receipts.</p></div></div></div>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script type="module" src="/static/sessions.js"></script>
+</body>
+</html>
