@@ -4,7 +4,7 @@
   if(!document.querySelector('script[src="/static/v4-workbench.js"]')){
     const workbench=document.createElement('script');
     workbench.src='/static/v4-workbench.js';
-    workbench.async=false;
+    workbench.defer=true;
     document.body.appendChild(workbench);
   }
   if(!document.querySelector('link[href="/static/v4-command-center.css"]')){
@@ -14,7 +14,7 @@
   if(!document.querySelector('script[src="/static/v4-command-center.js"]')){
     const cc=document.createElement('script');
     cc.src='/static/v4-command-center.js';
-    cc.async=false;
+    cc.defer=true;
     document.body.appendChild(cc);
   }
   if(!document.querySelector('link[href="/static/v4-universe.css"]')){
@@ -24,7 +24,7 @@
   if(!document.querySelector('script[src="/static/v4-universe.js"]')){
     const universe=document.createElement('script');
     universe.src='/static/v4-universe.js';
-    universe.async=false;
+    universe.defer=true;
     document.body.appendChild(universe);
   }
   if(!document.querySelector('link[href="/static/v4-final-chrome.css"]')){
@@ -34,11 +34,21 @@
   if(!document.querySelector('script[src="/static/v4-final-chrome.js"]')){
     const chrome=document.createElement('script');
     chrome.src='/static/v4-final-chrome.js';
-    chrome.async=false;
+    chrome.defer=true;
     document.body.appendChild(chrome);
   }
-  // Universe research overrides intentionally load last so research-only context
-  // cannot be restyled back into single-market execution chrome by global polish.
+  if(!document.querySelector('link[href="/static/v4-sitewide.css"]')){
+    const polishStyle=document.createElement('link');
+    polishStyle.rel='stylesheet';polishStyle.href='/static/v4-sitewide.css';document.head.appendChild(polishStyle);
+  }
+  if(!document.querySelector('script[src="/static/v4-sitewide.js"]')){
+    const polish=document.createElement('script');
+    polish.src='/static/v4-sitewide.js';
+    polish.defer=true;
+    document.body.appendChild(polish);
+  }
+  // Universe research assets load after global chrome so research-only semantics
+  // and safety gates own the final behavior/cascade while this surface is active.
   if(!document.querySelector('link[href="/static/v4-universe-refine.css"]')){
     const universeRefineStyle=document.createElement('link');
     universeRefineStyle.rel='stylesheet';universeRefineStyle.href='/static/v4-universe-refine.css';document.head.appendChild(universeRefineStyle);
@@ -46,8 +56,14 @@
   if(!document.querySelector('script[src="/static/v4-universe-refine.js"]')){
     const universeRefine=document.createElement('script');
     universeRefine.src='/static/v4-universe-refine.js';
-    universeRefine.async=false;
+    universeRefine.defer=true;
     document.body.appendChild(universeRefine);
+  }
+  if(!document.querySelector('script[src="/static/v4-universe-safety.js"]')){
+    const universeSafety=document.createElement('script');
+    universeSafety.src='/static/v4-universe-safety.js';
+    universeSafety.defer=true;
+    document.body.appendChild(universeSafety);
   }
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
