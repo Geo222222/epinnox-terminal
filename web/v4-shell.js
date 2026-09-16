@@ -17,6 +17,12 @@
     cc.defer=true;
     document.body.appendChild(cc);
   }
+  if(!document.querySelector('script[src="/static/v4-scanner-v2.js"]')){
+    const scannerV2=document.createElement('script');
+    scannerV2.src='/static/v4-scanner-v2.js';
+    scannerV2.defer=true;
+    document.body.appendChild(scannerV2);
+  }
   if(!document.querySelector('link[href="/static/v4-universe.css"]')){
     const universeStyle=document.createElement('link');
     universeStyle.rel='stylesheet';universeStyle.href='/static/v4-universe.css';document.head.appendChild(universeStyle);
