@@ -1,8 +1,9 @@
 from pathlib import Path
 
+import app.scanner as scanner_module
 from app.models import ScannerRequest
 from app.scan_store import ScanStore
-from app.scanner import _candidate, fee_floor_pct
+from app.scanner import _candidate, fee_floor_pct, run_scanner
 
 
 def candles(n=600):
@@ -27,7 +28,7 @@ def test_fee_floor_is_deterministic_and_covers_two_sided_fees():
     assert abs(floor["long_pct"]-floor["short_pct"]) < 0.001
 
 
-def test_scanner_candidate_exposes_qualification_and_walk_forward():
+def test_scanner_candidate_exposes_holdout_and_walk_forward_evidence():
     req=ScannerRequest(
         symbols=["ETH/USDT:USDT"],
         timeframes=["1m"],
@@ -39,6 +40,8 @@ def test_scanner_candidate_exposes_qualification_and_walk_forward():
         min_walk_forward_pass_rate_pct=0,
         max_drawdown_pct=100,
         min_net_expectancy_usdt=-100000,
+        min_holdout_trades=1,
+        min_holdout_expectancy_usdt=-100000,
         starting_balance=10000,
     )
     row=_candidate(req,candles(),"ETH/USDT:USDT","1m","Supertrend",0.0)
@@ -46,9 +49,40 @@ def test_scanner_candidate_exposes_qualification_and_walk_forward():
     assert row["target_buffer_pct"]==0.0
     assert row["fee_floor_long_pct"]>0
     assert row["walk_forward"]["windows"]==3
+    assert row["holdout"]["bars"]==150
+    assert row["validation"]["calibration_bars"]==450
+    assert "robustness_score" in row
     assert "qualified" in row
     assert "trades_per_day" in row
     assert "referral_revenue_per_day" in row
+
+
+def test_scanner_builds_strategy_model_once_per_symbol_timeframe_strategy(monkeypatch):
+    data=candles(600)
+    monkeypatch.setattr(scanner_module,"_recent_history",lambda symbol,timeframe,bars:data[-bars:])
+    req=ScannerRequest(
+        symbols=["ETH/USDT:USDT"],
+        timeframes=["1m"],
+        strategies=["Supertrend"],
+        target_buffers_pct=[0.0,0.01,0.02],
+        history_bars=600,
+        walk_forward_windows=2,
+        min_sample_trades=1,
+        min_walk_forward_pass_rate_pct=0,
+        max_drawdown_pct=100,
+        min_net_expectancy_usdt=-100000,
+        min_holdout_trades=1,
+        min_holdout_expectancy_usdt=-100000,
+        starting_balance=10000,
+    )
+    result=run_scanner(req)
+    assert result["schema_version"]==2
+    assert result["parity_semantics_version"].startswith("pine-v2")
+    assert result["engine_stats"]["strategy_models_built"]==1
+    assert result["engine_stats"]["simulations_run"]==12
+    assert result["engine_stats"]["strategy_builds_avoided"]==11
+    assert result["validation_policy"]["type"]=="chronological_holdout_with_walk_forward_calibration"
+    assert len(result["results"])==3
 
 
 def test_scanner_request_caps_excessive_cartesian_work():
