@@ -40,6 +40,11 @@ def index():
     return FileResponse(WEB / "index.html")
 
 
+@app.get("/scanner")
+def scanner_page():
+    return FileResponse(WEB / "scanner.html")
+
+
 @app.get("/api/config")
 def config():
     settings = public_settings()
