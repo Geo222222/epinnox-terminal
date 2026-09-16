@@ -107,6 +107,21 @@ def scanner_page():
     return FileResponse(WEB / "scanner.html")
 
 
+@app.get("/sessions")
+def sessions_page():
+    return FileResponse(WEB / "sessions.html")
+
+
+@app.get("/research")
+def research_page():
+    return FileResponse(WEB / "research.html")
+
+
+@app.get("/strategies")
+def strategies_page():
+    return FileResponse(WEB / "strategies.html")
+
+
 @app.get("/api/health")
 def health():
     active = paper_sessions.active()
