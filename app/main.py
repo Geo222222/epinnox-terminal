@@ -24,9 +24,6 @@ paper_live = PaperLiveManager()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Resume durable PAPER intent only after reconciling epinnox-online. No browser
-    # credential/cookie is persisted; recovery therefore fails closed when upstream
-    # authorization cannot be re-established without a browser session.
     await paper_live.recover(os.getenv("EPINNOX_ONLINE_BASE_URL"))
     yield
     await paper_live.shutdown()
@@ -162,6 +159,10 @@ def execution_status():
 @app.post("/api/paper-live/start")
 async def start_paper_live(req: BacktestRequest, request: Request):
     try:
+        if paper_live.state.running:
+            raise RuntimeError("A paper live session is already running")
+        # An explicit user start supersedes a stale RECOVERY_REQUIRED checkpoint.
+        runtime_store.supersede_active_sessions()
         return await paper_live.start(
             req,
             os.getenv("EPINNOX_ONLINE_BASE_URL"),
