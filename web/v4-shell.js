@@ -27,6 +27,16 @@
     universe.defer=true;
     document.body.appendChild(universe);
   }
+  if(!document.querySelector('link[href="/static/v4-final-chrome.css"]')){
+    const chromeStyle=document.createElement('link');
+    chromeStyle.rel='stylesheet';chromeStyle.href='/static/v4-final-chrome.css';document.head.appendChild(chromeStyle);
+  }
+  if(!document.querySelector('script[src="/static/v4-final-chrome.js"]')){
+    const chrome=document.createElement('script');
+    chrome.src='/static/v4-final-chrome.js';
+    chrome.defer=true;
+    document.body.appendChild(chrome);
+  }
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
   const list=document.getElementById('sessionList');
