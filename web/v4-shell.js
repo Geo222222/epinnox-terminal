@@ -4,7 +4,7 @@
   if(!document.querySelector('script[src="/static/v4-workbench.js"]')){
     const workbench=document.createElement('script');
     workbench.src='/static/v4-workbench.js';
-    workbench.defer=true;
+    workbench.async=false;
     document.body.appendChild(workbench);
   }
   if(!document.querySelector('link[href="/static/v4-command-center.css"]')){
@@ -14,7 +14,7 @@
   if(!document.querySelector('script[src="/static/v4-command-center.js"]')){
     const cc=document.createElement('script');
     cc.src='/static/v4-command-center.js';
-    cc.defer=true;
+    cc.async=false;
     document.body.appendChild(cc);
   }
   if(!document.querySelector('link[href="/static/v4-universe.css"]')){
@@ -24,7 +24,7 @@
   if(!document.querySelector('script[src="/static/v4-universe.js"]')){
     const universe=document.createElement('script');
     universe.src='/static/v4-universe.js';
-    universe.defer=true;
+    universe.async=false;
     document.body.appendChild(universe);
   }
   if(!document.querySelector('link[href="/static/v4-final-chrome.css"]')){
@@ -34,7 +34,7 @@
   if(!document.querySelector('script[src="/static/v4-final-chrome.js"]')){
     const chrome=document.createElement('script');
     chrome.src='/static/v4-final-chrome.js';
-    chrome.defer=true;
+    chrome.async=false;
     document.body.appendChild(chrome);
   }
   // Universe research overrides intentionally load last so research-only context
@@ -46,7 +46,7 @@
   if(!document.querySelector('script[src="/static/v4-universe-refine.js"]')){
     const universeRefine=document.createElement('script');
     universeRefine.src='/static/v4-universe-refine.js';
-    universeRefine.defer=true;
+    universeRefine.async=false;
     document.body.appendChild(universeRefine);
   }
   const rail=document.getElementById('sessionRail');
