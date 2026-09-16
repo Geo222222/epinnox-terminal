@@ -20,6 +20,9 @@ jobs:
           node --check web/app.js
           node --check web/persistence.js
           node --check web/scanner.js
+          node --check web/sessions.js
+          node --check web/research.js
+          node --check web/strategies.js
           node --check web/v4-shell.js
           node --check web/v4-workbench.js
           node --check web/v4-command-center.js
@@ -31,7 +34,15 @@ jobs:
           test -s web/v4-workbench.js
           test -s web/v4-command-center.css
           test -s web/v4-command-center.js
+          test -s web/product-pages.css
+          test -s web/scanner.html
+          test -s web/sessions.html
+          test -s web/research.html
+          test -s web/strategies.html
           grep -q "execution/accounts" app/main.py
+          grep -q 'def sessions_page' app/main.py
+          grep -q 'def research_page' app/main.py
+          grep -q 'def strategies_page' app/main.py
           grep -q "drawingToolbar" web/app.js
           grep -q 'id="sessionRail"' web/index.html
           grep -q 'id="accountSelector"' web/index.html
@@ -39,6 +50,11 @@ jobs:
           grep -q 'SCANNER' web/index.html
           grep -q 'v4-workbench.js' web/v4-shell.js
           grep -q 'v4-command-center.js' web/v4-shell.js
+          grep -q 'href="/sessions"' web/v4-shell.js
+          grep -q 'CANDIDATE LEADERBOARD' web/scanner.html
+          grep -q 'SESSION REGISTRY' web/sessions.html
+          grep -q 'PINNED BACKTESTS' web/research.html
+          grep -q 'MODEL CATALOG' web/strategies.html
       - name: Upload pytest report
         if: always()
         uses: actions/upload-artifact@v4
