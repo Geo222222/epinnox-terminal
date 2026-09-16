@@ -79,7 +79,7 @@ class PaperSessionRegistry:
             )
             session_id = str(snapshot["session_id"])
             self._managers[session_id] = manager
-            return snapshot
+            return self._manager_snapshot(manager)
 
     async def recover(self, session_id: str, base_url: str | None, cookie: str) -> dict[str, Any]:
         async with self._lock:
@@ -93,15 +93,16 @@ class PaperSessionRegistry:
                 raise SessionConflict("Persisted session is missing its account or symbol ownership identity")
             self._assert_available(account_id, symbol, exclude_session_id=session_id)
             manager = self._managers.get(session_id) or PaperLiveManager(self.store)
-            snapshot = await manager.recover_record(record, base_url, cookie)
+            await manager.recover_record(record, base_url, cookie)
             self._managers[session_id] = manager
-            return snapshot
+            return self._manager_snapshot(manager)
 
     async def stop(self, session_id: str) -> dict[str, Any]:
         async with self._lock:
             manager = self._managers.get(session_id)
             if manager is not None:
-                snapshot = await manager.stop()
+                await manager.stop()
+                snapshot = self._manager_snapshot(manager)
                 self._managers.pop(session_id, None)
                 return snapshot
             record = self.store.get_session(session_id)
@@ -111,10 +112,24 @@ class PaperSessionRegistry:
             record = self.store.get_session(session_id) or record
             return self._record_snapshot(record)
 
-    def _record_snapshot(self, record: dict[str, Any]) -> dict[str, Any]:
-        raw = dict(record.get("request") or {})
+    @staticmethod
+    def _clean_request(raw_request: dict[str, Any] | None) -> tuple[dict[str, Any], str | None, str | None]:
+        raw = dict(raw_request or {})
         account_id = raw.pop("_terminal_account_id", None)
         name = raw.pop("_terminal_session_name", None)
+        return raw, account_id, name
+
+    def _manager_snapshot(self, manager: PaperLiveManager) -> dict[str, Any]:
+        snapshot = manager.snapshot()
+        req = manager.request
+        if req is not None:
+            snapshot["request"] = req.model_dump(mode="json")
+        else:
+            snapshot["request"] = None
+        return snapshot
+
+    def _record_snapshot(self, record: dict[str, Any]) -> dict[str, Any]:
+        raw, account_id, name = self._clean_request(record.get("request"))
         return {
             "session_id": record["session_id"],
             "name": name,
@@ -123,6 +138,7 @@ class PaperSessionRegistry:
             "symbol": raw.get("symbol"),
             "timeframe": raw.get("timeframe"),
             "strategy": raw.get("strategy"),
+            "request": raw,
             "status": record["status"],
             "running": False,
             "started_at_ms": record["started_at_ms"],
@@ -141,7 +157,7 @@ class PaperSessionRegistry:
     def get(self, session_id: str) -> dict[str, Any]:
         manager = self._managers.get(session_id)
         if manager is not None:
-            return manager.snapshot()
+            return self._manager_snapshot(manager)
         record = self.store.get_session(session_id)
         if record is None:
             raise SessionNotFound(f"Paper session {session_id} was not found")
@@ -152,7 +168,7 @@ class PaperSessionRegistry:
         out: list[dict[str, Any]] = []
         for record in records:
             manager = self._managers.get(record["session_id"])
-            out.append(manager.snapshot() if manager is not None else self._record_snapshot(record))
+            out.append(self._manager_snapshot(manager) if manager is not None else self._record_snapshot(record))
         return out
 
     def active(self) -> list[dict[str, Any]]:
