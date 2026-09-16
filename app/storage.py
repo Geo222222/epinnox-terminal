@@ -116,6 +116,19 @@ class RuntimeStore:
                 ),
             )
 
+    def supersede_active_sessions(self) -> int:
+        now = int(time.time() * 1000)
+        with self._lock, self._connect() as conn:
+            cur = conn.execute(
+                """
+                UPDATE paper_sessions
+                SET status='SUPERSEDED', updated_at_ms=?
+                WHERE status IN ('RUNNING','RECONCILING','RECOVERED','RECOVERY_REQUIRED')
+                """,
+                (now,),
+            )
+            return cur.rowcount
+
     def load_active_session(self) -> dict[str, Any] | None:
         with self._lock, self._connect() as conn:
             row = conn.execute(
