@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "terminal": {
+    "default_symbol": "ETH/USDT:USDT",
+    "default_timeframe": "5m",
+    "default_mode": "BACKTEST",
+    "default_backtest_profile": "TradingView Parity",
+    "default_strategy": "Supertrend",
+    "default_confirmation_policy": "Single"
+  },
+  "account_defaults": {
+    "starting_balance": 100000.0,
+    "leverage": 1.0,
+    "allocation_pct": 5.0,
+    "pyramiding": 1,
+    "direction": "Both"
+  },
+  "economics_defaults": {
+    "entry_fee_pct": 0.05,
+    "exit_fee_pct": 0.05,
+    "extra_cost_pct": 0.0,
+    "desired_net_profit_pct": 0.01,
+    "referral_share_pct": 30.0,
+    "maintenance_margin_pct": 0.4
+  },
+  "backtest_defaults": {
+    "history_bars": 1000,
+    "max_range_bars": 50000,
+    "funding_bps_per_8h": 0.0
+  },
+  "features": {
+    "paper_recovery": true,
+    "named_presets": true,
+    "workspace_persistence": true,
+    "live_execution": false
+  },
+  "specials": {
+    "tv_parity": {
+      "label": "TradingView Parity",
+      "backtest_profile": "TradingView Parity",
+      "funding_bps_per_8h": 0.0,
+      "max_bars_in_trade": null,
+      "stop_loss_pct": null
+    },
+    "high_leverage_stress": {
+      "label": "High Leverage Stress",
+      "backtest_profile": "Simplified Isolated",
+      "leverage": 200.0,
+      "allocation_pct": 5.0,
+      "maintenance_margin_pct": 0.4
+    }
+  }
+}
