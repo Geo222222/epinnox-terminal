@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Research · Epinnox Terminal</title>
+  <link rel="icon" type="image/webp" href="/static/assets/epinnox-mark.webp" />
+  <link rel="stylesheet" href="/static/product-pages.css" />
+  <link rel="stylesheet" href="/static/research.css" />
+</head>
+<body>
+  <div class="product-shell">
+    <header class="product-header">
+      <a class="product-brand" href="/"><img src="/static/assets/epinnox-mark.webp" alt="Epinnox" /><div><strong>EPINNOX TERMINAL</strong><span>Capital intelligence · Serving Benjamin</span></div></a>
+      <div class="product-health"><i></i><span>Evidence workspace</span></div>
+      <div class="product-mode"><span class="product-badge live">Research library</span><span class="product-badge">Local + durable</span></div>
+    </header>
+    <div class="product-layout">
+      <aside class="product-sidebar">
+        <div class="nav-label">PRIMARY</div>
+        <nav class="product-nav">
+          <a href="/"><span class="nav-icon">CH</span><span class="nav-copy"><strong>Terminal</strong><span>Chart & backtest</span></span></a>
+          <a href="/scanner"><span class="nav-icon">SC</span><span class="nav-copy"><strong>Scanner</strong><span>Opportunity discovery</span></span></a>
+          <a href="/sessions"><span class="nav-icon">PS</span><span class="nav-copy"><strong>Sessions</strong><span>Paper operations</span></span></a>
+          <a class="active" href="/research"><span class="nav-icon">EV</span><span class="nav-copy"><strong>Research</strong><span>Evidence library</span></span></a>
+          <a href="/strategies"><span class="nav-icon">ST</span><span class="nav-copy"><strong>Strategies</strong><span>Models & presets</span></span></a>
+        </nav>
+        <div class="sidebar-status"><strong>Research contract</strong><br />Experiments stay inspectable before they are promoted into paper execution.</div>
+      </aside>
+      <main class="product-main research-page">
+        <div class="page-head">
+          <div><span class="page-kicker">EVIDENCE LIBRARY</span><h1>Research</h1><p>One place for pinned backtests, persisted scanner experiments and named workstation presets. This is the handoff layer between discovery, inspection and paper qualification.</p></div>
+          <div class="page-actions"><a class="ep-btn" href="/scanner">Run scanner</a><a class="ep-btn primary" href="/">New backtest</a></div>
+        </div>
+
+        <section class="kpi-grid">
+          <div class="kpi"><span>Pinned backtests</span><b id="researchPinsCount">—</b><small>browser evidence</small></div>
+          <div class="kpi"><span>Scanner experiments</span><b id="researchScansCount">—</b><small>durable runs</small></div>
+          <div class="kpi"><span>Named presets</span><b id="researchPresetsCount">—</b><small>reusable configurations</small></div>
+          <div class="kpi"><span>Paper sessions</span><b id="researchSessionsCount">—</b><small>qualification outcomes</small></div>
+        </section>
+
+        <div class="research-grid">
+          <section class="panel research-pins">
+            <div class="panel-head"><div class="panel-title"><h2>PINNED BACKTESTS</h2><span>comparative experiments from the Terminal</span></div><a class="ep-btn" href="/">Compare in Terminal</a></div>
+            <div id="researchPins" class="research-list"><div class="empty-state"><div><strong>No pinned backtests</strong><p>Pin a backtest from the bottom workbench to preserve it here.</p></div></div></div>
+          </section>
+
+          <section class="panel research-scans">
+            <div class="panel-head"><div class="panel-title"><h2>SCANNER EXPERIMENTS</h2><span>persisted qualification runs</span></div><a class="ep-btn" href="/scanner">Open scanner</a></div>
+            <div id="researchScans" class="research-list"><div class="empty-state"><div><strong>No scans loaded</strong><p>Completed opportunity scans will appear here.</p></div></div></div>
+          </section>
+
+          <section class="panel research-presets">
+            <div class="panel-head"><div class="panel-title"><h2>NAMED PRESETS</h2><span>deliberate reusable workstation states</span></div><a class="ep-btn" href="/strategies">Strategy library</a></div>
+            <div id="researchPresets" class="research-list"><div class="empty-state"><div><strong>No presets loaded</strong><p>Save an intentional configuration from the Strategy inspector.</p></div></div></div>
+          </section>
+
+          <section class="panel research-flow">
+            <div class="panel-head"><div class="panel-title"><h2>QUALIFICATION FLOW</h2><span>how Epinnox should move an idea forward</span></div></div>
+            <div class="qualification-flow">
+              <article><span>01</span><div><strong>Discover</strong><p>Use Scanner to find candidate market/strategy/target combinations.</p></div></article>
+              <article><span>02</span><div><strong>Inspect</strong><p>Load a candidate into the chart and verify signals, trades and economics.</p></div></article>
+              <article><span>03</span><div><strong>Compare</strong><p>Pin competing backtests and compare evidence side-by-side.</p></div></article>
+              <article><span>04</span><div><strong>Paper qualify</strong><p>Bind a paper account and let a durable session operate under the same configuration.</p></div></article>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script type="module" src="/static/research.js"></script>
+</body>
+</html>
