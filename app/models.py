@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Candle(BaseModel):
@@ -13,10 +13,22 @@ class Candle(BaseModel):
     volume: float
 
 
+ConfirmationPolicy = Literal[
+    "Single",
+    "All Recent Events",
+    "Quorum Recent Events",
+    "Primary + All States",
+]
+
+
 class BacktestRequest(BaseModel):
     symbol: str = "ETH/USDT:USDT"
     timeframe: Literal["1m", "5m", "15m", "30m"] = "1m"
     strategy: str = "Supertrend"
+    confirmations: list[str] = Field(default_factory=list, max_length=8)
+    confirmation_policy: ConfirmationPolicy = "Single"
+    confirmation_required: int = Field(2, ge=1, le=9)
+    confirmation_window_bars: int = Field(1, ge=1, le=100)
     limit: int = Field(1000, ge=100, le=5000)
     starting_balance: float = Field(100000.0, gt=0)
     leverage: float = Field(1.0, ge=1, le=200)
@@ -33,6 +45,16 @@ class BacktestRequest(BaseModel):
     stop_loss_pct: float | None = Field(None, gt=0, le=99)
     funding_bps_per_8h: float = Field(0.0, ge=-1000, le=1000)
     manual_params: dict[str, float | int] | None = None
+
+    @model_validator(mode="after")
+    def normalize_confirmation_model(self):
+        self.confirmations = [x for x in self.confirmations if x and x != self.strategy]
+        if self.confirmation_policy == "Single":
+            self.confirmations = []
+        selected = 1 + len(self.confirmations)
+        if self.confirmation_policy == "Quorum Recent Events" and self.confirmation_required > selected:
+            raise ValueError("confirmation_required cannot exceed the number of selected strategies")
+        return self
 
 
 class MarketResponse(BaseModel):
