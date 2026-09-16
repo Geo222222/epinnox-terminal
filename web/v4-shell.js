@@ -27,6 +27,16 @@
     universe.defer=true;
     document.body.appendChild(universe);
   }
+  if(!document.querySelector('link[href="/static/v4-universe-refine.css"]')){
+    const universeRefineStyle=document.createElement('link');
+    universeRefineStyle.rel='stylesheet';universeRefineStyle.href='/static/v4-universe-refine.css';document.head.appendChild(universeRefineStyle);
+  }
+  if(!document.querySelector('script[src="/static/v4-universe-refine.js"]')){
+    const universeRefine=document.createElement('script');
+    universeRefine.src='/static/v4-universe-refine.js';
+    universeRefine.defer=true;
+    document.body.appendChild(universeRefine);
+  }
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
   const list=document.getElementById('sessionList');
