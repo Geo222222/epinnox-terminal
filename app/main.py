@@ -3,17 +3,24 @@ from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .backtest import run_backtest
-from .market import fetch_ohlcv, fetch_ohlcv_range, symbols
-from .models import BacktestRequest, ScannerRequest
+from .market import TIMEFRAME_SPECS, fetch_ohlcv, fetch_ohlcv_range, symbols
+from .models import BacktestRequest, PaperLiveStartRequest, ScannerRequest
+from .online_bridge import (
+    OnlineBridgeError,
+    account_snapshot as online_account_snapshot,
+    activate_account as online_activate_account,
+    list_accounts as online_list_accounts,
+    paper_state as online_paper_state,
+)
 from .paper_live import PaperLiveManager
-from .presets import PRESETS, STRATEGIES
+from .presets import PRESETS, STRATEGIES, preset_source
 from .scan_store import scan_store
 from .scanner import run_scanner
 from .settings import public_settings
@@ -23,6 +30,12 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 paper_live = PaperLiveManager()
 
+TIMEFRAMES = list(TIMEFRAME_SPECS)
+TIMEFRAME_LABELS = {
+    "1m": "1m", "5m": "5m", "15m": "15m", "30m": "30m",
+    "1h": "1h", "2h": "2h", "3h": "3h", "4h": "4h", "5h": "5h", "8h": "8h",
+    "1d": "D", "5d": "5D", "1w": "W", "1M": "M",
+}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,8 +44,33 @@ async def lifespan(app: FastAPI):
     await paper_live.shutdown()
 
 
-app = FastAPI(title="Epinnox Terminal", version="0.5.0", lifespan=lifespan)
+app = FastAPI(title="Epinnox Terminal", version="0.6.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=WEB), name="static")
+
+
+def _online_base() -> str | None:
+    return os.getenv("EPINNOX_ONLINE_BASE_URL")
+
+
+def _cookie(request: Request) -> str:
+    return request.headers.get("cookie", "")
+
+
+def _raise_bridge(exc: OnlineBridgeError) -> None:
+    status_code = exc.status_code if exc.status_code in {400, 401, 403, 404, 409, 422, 429, 503} else 502
+    raise HTTPException(status_code=status_code, detail=exc.detail) from exc
+
+
+async def _account_rows(request: Request) -> list[dict[str, Any]]:
+    try:
+        return await online_list_accounts(_online_base(), _cookie(request))
+    except OnlineBridgeError as exc:
+        _raise_bridge(exc)
+    return []
+
+
+def _find_account(rows: list[dict[str, Any]], account_id: str) -> dict[str, Any] | None:
+    return next((row for row in rows if str(row.get("id") or "") == account_id), None)
 
 
 @app.get("/")
@@ -52,7 +90,9 @@ def config():
     return {
         "schema_version": settings["schema_version"],
         "strategies": STRATEGIES,
-        "timeframes": ["1m", "5m", "15m", "30m"],
+        "timeframes": TIMEFRAMES,
+        "timeframe_labels": TIMEFRAME_LABELS,
+        "timeframe_preset_source": {tf: preset_source(tf) for tf in TIMEFRAMES},
         "presets": PRESETS,
         "confirmation_policies": [
             "Single",
@@ -68,8 +108,10 @@ def config():
         "default_symbol": terminal["default_symbol"],
         "defaults": settings,
         "execution": {
-            "epinnox_online_base_url": os.getenv("EPINNOX_ONLINE_BASE_URL"),
-            "paper_live_adapter_configured": bool(os.getenv("EPINNOX_ONLINE_BASE_URL")),
+            "epinnox_online_base_url": _online_base(),
+            "paper_live_adapter_configured": bool(_online_base()),
+            "account_context": "epinnox-online-session",
+            "live_order_routing_armed": False,
         },
     }
 
@@ -118,6 +160,8 @@ def market(symbol: str = Query("ETH/USDT:USDT"), timeframe: str = Query("1m"), l
     try:
         candles = fetch_ohlcv(symbol, timeframe, limit)
         return {"symbol": symbol, "timeframe": timeframe, "candles": candles, "source": "HTX via CCXT"}
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
         raise HTTPException(502, f"HTX OHLCV failed: {exc}") from exc
 
@@ -171,34 +215,88 @@ def scanner_run_detail(scan_id: str):
     return result
 
 
+@app.get("/api/execution/accounts")
+async def execution_accounts(request: Request):
+    if not _online_base():
+        return {"configured": False, "authenticated": False, "accounts": [], "active_account_id": None}
+    rows = await _account_rows(request)
+    active = next((str(row.get("id")) for row in rows if row.get("is_active")), None)
+    return {"configured": True, "authenticated": True, "accounts": rows, "active_account_id": active}
+
+
+@app.post("/api/execution/accounts/{account_id}/activate")
+async def activate_execution_account(
+    account_id: str,
+    request: Request,
+    mode: Literal["paper", "live"] = Query(...),
+):
+    rows = await _account_rows(request)
+    row = _find_account(rows, account_id)
+    if row is None:
+        raise HTTPException(404, "Account not found in the authenticated Epinnox Online session")
+    account_mode = str(row.get("account_mode") or "").lower()
+    if account_mode != mode:
+        raise HTTPException(409, f"Selected account is {account_mode or 'unknown'}, not {mode}")
+    try:
+        result = await online_activate_account(_online_base(), _cookie(request), account_id)
+    except OnlineBridgeError as exc:
+        _raise_bridge(exc)
+    refreshed = await _account_rows(request)
+    active = _find_account(refreshed, account_id)
+    if not active or not active.get("is_active"):
+        raise HTTPException(409, "Epinnox Online did not confirm the selected account as active")
+    return {"ok": True, "account": active, "activation": result}
+
+
+@app.get("/api/execution/accounts/{account_id}/state")
+async def execution_account_state(account_id: str, request: Request):
+    rows = await _account_rows(request)
+    row = _find_account(rows, account_id)
+    if row is None:
+        raise HTTPException(404, "Account not found in the authenticated Epinnox Online session")
+    if not row.get("is_active"):
+        return {"account": row, "active": False, "state": None}
+    try:
+        if str(row.get("account_mode") or "").lower() == "paper":
+            state = await online_paper_state(_online_base(), _cookie(request))
+        else:
+            state = await online_account_snapshot(_online_base(), _cookie(request))
+    except OnlineBridgeError as exc:
+        _raise_bridge(exc)
+    return {"account": row, "active": True, "state": state}
+
+
 @app.get("/api/execution/status")
 def execution_status():
-    base = os.getenv("EPINNOX_ONLINE_BASE_URL")
+    base = _online_base()
     return {
         "backtest": "ready",
         "scanner": "ready",
         "paper": "ready" if base else "not-configured",
-        "live": "not-armed",
+        "live": "account-selection-ready",
+        "live_order_routing": "not-armed",
         "paper_running": paper_live.state.running,
         "paper_status": paper_live.state.status,
         "paper_session_id": paper_live.state.session_id,
+        "paper_account_id": paper_live.state.account_id,
         "epinnox_online_base_url": base,
         "note": (
-            "PAPER uses durable SQLite checkpoints and reconciles epinnox-online on restart. "
-            "OTS-01 scanner is deterministic research only. LIVE remains intentionally unarmed."
+            "PAPER is bound to an explicit Epinnox Online paper account and fails closed if that account context changes. "
+            "LIVE account selection is wired, but real order routing remains intentionally unarmed."
         ),
     }
 
 
 @app.post("/api/paper-live/start")
-async def start_paper_live(req: BacktestRequest, request: Request):
+async def start_paper_live(req: PaperLiveStartRequest, request: Request):
     try:
         if paper_live.state.running:
             raise RuntimeError("A paper live session is already running")
         result = await paper_live.start(
-            req,
-            os.getenv("EPINNOX_ONLINE_BASE_URL"),
-            request.headers.get("cookie", ""),
+            req.strategy,
+            _online_base(),
+            _cookie(request),
+            account_id=req.account_id,
         )
         if result.get("session_id"):
             runtime_store.supersede_active_sessions(keep_session_id=result["session_id"])
@@ -213,8 +311,8 @@ async def start_paper_live(req: BacktestRequest, request: Request):
 async def recover_paper_live(request: Request):
     try:
         return await paper_live.recover(
-            os.getenv("EPINNOX_ONLINE_BASE_URL"),
-            request.headers.get("cookie", ""),
+            _online_base(),
+            _cookie(request),
         )
     except Exception as exc:
         raise HTTPException(502, f"Paper recovery failed: {exc}") from exc

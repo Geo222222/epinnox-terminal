@@ -20,6 +20,11 @@ jobs:
           node --check web/app.js
           node --check web/persistence.js
           node --check web/scanner.js
+      - name: Verify workstation assets
+        run: |
+          test -s web/workstation.css
+          grep -q "execution/accounts" app/main.py
+          grep -q "drawingToolbar" web/app.js
       - name: Upload pytest report
         if: always()
         uses: actions/upload-artifact@v4

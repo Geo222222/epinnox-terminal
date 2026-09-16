@@ -72,9 +72,28 @@ PRESETS: dict[str, dict[str, dict[str, float | int]]] = {
 }
 
 STRATEGIES = list(PRESETS["1m"].keys())
+LONG_TIMEFRAME_PRESET_SOURCE = {
+    "1h": "30m", "2h": "30m", "3h": "30m", "4h": "30m", "5h": "30m", "8h": "30m",
+    "1d": "30m", "5d": "30m", "1w": "30m", "1M": "30m",
+}
+
+
+def preset_source(timeframe: str) -> str:
+    """Return the parameter set used by a chart interval.
+
+    1m-30m have separately qualified presets. Longer chart intervals currently
+    reuse the 30m parameter set deterministically until their own qualification
+    work is completed; the UI exposes this source instead of implying otherwise.
+    """
+    if timeframe in PRESETS:
+        return timeframe
+    try:
+        return LONG_TIMEFRAME_PRESET_SOURCE[timeframe]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported timeframe preset: {timeframe}") from exc
 
 
 def params_for(timeframe: str, strategy: str, manual: dict | None = None) -> dict:
     if manual:
         return dict(manual)
-    return dict(PRESETS[timeframe][strategy])
+    return dict(PRESETS[preset_source(timeframe)][strategy])

@@ -1,13 +1,43 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from functools import lru_cache
+import time
+
 import ccxt
+
+
+TIMEFRAME_SPECS: dict[str, dict[str, int | str | bool]] = {
+    "1m": {"source": "1m", "factor": 1, "ms": 60_000},
+    "5m": {"source": "5m", "factor": 1, "ms": 300_000},
+    "15m": {"source": "15m", "factor": 1, "ms": 900_000},
+    "30m": {"source": "30m", "factor": 1, "ms": 1_800_000},
+    "1h": {"source": "1h", "factor": 1, "ms": 3_600_000},
+    "2h": {"source": "1h", "factor": 2, "ms": 7_200_000},
+    "3h": {"source": "1h", "factor": 3, "ms": 10_800_000},
+    "4h": {"source": "4h", "factor": 1, "ms": 14_400_000},
+    "5h": {"source": "1h", "factor": 5, "ms": 18_000_000},
+    "8h": {"source": "4h", "factor": 2, "ms": 28_800_000},
+    "1d": {"source": "1d", "factor": 1, "ms": 86_400_000},
+    "5d": {"source": "1d", "factor": 5, "ms": 432_000_000},
+    "1w": {"source": "1w", "factor": 1, "ms": 604_800_000},
+    # Month bars are aggregated from daily candles so behavior is consistent
+    # even when an exchange uses a venue-specific monthly timeframe spelling.
+    "1M": {"source": "1d", "factor": 31, "ms": 2_592_000_000, "calendar_month": True},
+}
 
 
 @lru_cache(maxsize=1)
 def exchange():
     klass = getattr(ccxt, "htx", None) or getattr(ccxt, "huobi")
     return klass({"enableRateLimit": True, "options": {"defaultType": "swap"}})
+
+
+def timeframe_ms(timeframe: str) -> int:
+    try:
+        return int(TIMEFRAME_SPECS[timeframe]["ms"])
+    except KeyError as exc:
+        raise ValueError(f"Unsupported timeframe: {timeframe}") from exc
 
 
 def _rows_to_candles(rows) -> list[dict]:
@@ -17,30 +47,73 @@ def _rows_to_candles(rows) -> list[dict]:
     ]
 
 
-def fetch_ohlcv(symbol: str, timeframe: str, limit: int) -> list[dict]:
-    rows = exchange().fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
-    return _rows_to_candles(rows)
+def _bucket_key(ts_ms: int, timeframe: str):
+    spec = TIMEFRAME_SPECS[timeframe]
+    if spec.get("calendar_month"):
+        dt = datetime.fromtimestamp(ts_ms / 1000.0, tz=timezone.utc)
+        return (dt.year, dt.month)
+    width = int(spec["ms"])
+    return ts_ms // width
 
 
-def fetch_ohlcv_range(
-    symbol: str,
-    timeframe: str,
-    start_ts_ms: int,
-    end_ts_ms: int,
-    max_bars: int = 50000,
-) -> list[dict]:
-    """Page HTX OHLCV forward so a TradingView date window can be reproduced."""
-    if start_ts_ms >= end_ts_ms:
-        raise ValueError("start_ts_ms must be before end_ts_ms")
-    tf_ms = {"1m": 60_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000}[timeframe]
+def _bucket_start(key, timeframe: str) -> int:
+    spec = TIMEFRAME_SPECS[timeframe]
+    if spec.get("calendar_month"):
+        year, month = key
+        return int(datetime(year, month, 1, tzinfo=timezone.utc).timestamp() * 1000)
+    return int(key) * int(spec["ms"])
+
+
+def _aggregate(rows: list[dict], timeframe: str) -> list[dict]:
+    spec = TIMEFRAME_SPECS[timeframe]
+    if int(spec.get("factor", 1)) == 1 and not spec.get("calendar_month"):
+        return rows
+    out: list[dict] = []
+    current_key = None
+    bucket = None
+    for row in rows:
+        key = _bucket_key(int(row["ts_ms"]), timeframe)
+        if key != current_key:
+            if bucket is not None:
+                out.append(bucket)
+            current_key = key
+            bucket = {
+                "ts_ms": _bucket_start(key, timeframe),
+                "open": float(row["open"]),
+                "high": float(row["high"]),
+                "low": float(row["low"]),
+                "close": float(row["close"]),
+                "volume": float(row["volume"]),
+            }
+        else:
+            bucket["high"] = max(float(bucket["high"]), float(row["high"]))
+            bucket["low"] = min(float(bucket["low"]), float(row["low"]))
+            bucket["close"] = float(row["close"])
+            bucket["volume"] = float(bucket["volume"]) + float(row["volume"])
+    if bucket is not None:
+        out.append(bucket)
+    return out
+
+
+def _source_spec(timeframe: str) -> tuple[str, int]:
+    if timeframe not in TIMEFRAME_SPECS:
+        raise ValueError(f"Unsupported timeframe: {timeframe}")
+    source = str(TIMEFRAME_SPECS[timeframe]["source"])
+    source_ms = timeframe_ms(source) if source in TIMEFRAME_SPECS else {
+        "1m": 60_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000,
+        "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000, "1w": 604_800_000,
+    }[source]
+    return source, source_ms
+
+
+def _fetch_raw_range(symbol: str, source: str, source_ms: int, start_ts_ms: int, end_ts_ms: int, max_bars: int) -> list[dict]:
     ex = exchange()
     since = int(start_ts_ms)
     out: list[dict] = []
     seen: set[int] = set()
-
     while since <= end_ts_ms and len(out) < max_bars:
         batch_size = min(1000, max_bars - len(out))
-        rows = ex.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=batch_size)
+        rows = ex.fetch_ohlcv(symbol, timeframe=source, since=since, limit=batch_size)
         if not rows:
             break
         advanced = False
@@ -52,15 +125,51 @@ def fetch_ohlcv_range(
                 out.append(candle)
                 seen.add(ts)
             if ts >= since:
-                since = ts + tf_ms
+                since = ts + source_ms
                 advanced = True
-        if not advanced:
+        if not advanced or int(rows[-1][0]) > end_ts_ms:
             break
-        if rows[-1][0] > end_ts_ms:
-            break
-
     out.sort(key=lambda x: x["ts_ms"])
     return out
+
+
+def fetch_ohlcv(symbol: str, timeframe: str, limit: int) -> list[dict]:
+    if timeframe not in TIMEFRAME_SPECS:
+        raise ValueError(f"Unsupported timeframe: {timeframe}")
+    spec = TIMEFRAME_SPECS[timeframe]
+    factor = int(spec.get("factor", 1))
+    if factor == 1 and not spec.get("calendar_month"):
+        rows = exchange().fetch_ohlcv(symbol, timeframe=str(spec["source"]), limit=limit)
+        return _rows_to_candles(rows)
+    end = int(time.time() * 1000)
+    width = timeframe_ms(timeframe)
+    # Add two buckets of headroom for a partial current bar and sparse exchange data.
+    start = end - (max(1, limit) + 2) * width
+    return fetch_ohlcv_range(symbol, timeframe, start, end, max_bars=max(limit + 2, 100))[-limit:]
+
+
+def fetch_ohlcv_range(
+    symbol: str,
+    timeframe: str,
+    start_ts_ms: int,
+    end_ts_ms: int,
+    max_bars: int = 50000,
+) -> list[dict]:
+    """Page HTX OHLCV forward and aggregate custom TradingView-style intervals."""
+    if start_ts_ms >= end_ts_ms:
+        raise ValueError("start_ts_ms must be before end_ts_ms")
+    if timeframe not in TIMEFRAME_SPECS:
+        raise ValueError(f"Unsupported timeframe: {timeframe}")
+    source, source_ms = _source_spec(timeframe)
+    spec = TIMEFRAME_SPECS[timeframe]
+    factor = int(spec.get("factor", 1))
+    # Bound source paging independently from output bars. The month case needs
+    # daily source rows, while intraday custom bars need factor source rows.
+    source_cap = min(250_000, max_bars * max(1, factor) + max(100, factor * 4))
+    raw = _fetch_raw_range(symbol, source, source_ms, start_ts_ms - source_ms * factor, end_ts_ms, source_cap)
+    out = _aggregate(raw, timeframe)
+    out = [row for row in out if start_ts_ms <= int(row["ts_ms"]) <= end_ts_ms]
+    return out[:max_bars]
 
 
 def symbols() -> list[str]:
