@@ -129,6 +129,11 @@ def _recent(events: pd.Series, window: int) -> pd.Series:
     return events.astype(int).rolling(max(1, int(window)), min_periods=1).max().astype(bool)
 
 
+def _edge(condition: pd.Series) -> pd.Series:
+    current = condition.fillna(False).astype(bool)
+    return current & ~current.shift(1, fill_value=False)
+
+
 def build_entry_model(
     df: pd.DataFrame,
     primary: str,
@@ -141,14 +146,9 @@ def build_entry_model(
 ) -> dict:
     """Combine signal generators into a deterministic entry model.
 
-    Policies:
-      Single: primary event only.
-      All Recent Events: every selected strategy produced a same-direction event
-        within the rolling confirmation window.
-      Quorum Recent Events: at least `required` selected strategies produced a
-        same-direction event within the rolling confirmation window.
-      Primary + All States: primary must fire now and every confirmation must be
-        in a same-direction persistent state on that bar.
+    Recent-event policies emit once when a confirmation cluster first becomes
+    valid. They do not repeatedly pyramid from the same stale cluster on every
+    bar in the rolling window.
     """
     names = [primary]
     for name in confirmations or []:
@@ -175,13 +175,11 @@ def build_entry_model(
             long_votes += _recent(parts[name]["long"], window_bars).astype(int)
             short_votes += _recent(parts[name]["short"], window_bars).astype(int)
         needed = len(names) if policy == "All Recent Events" else max(1, min(int(required), len(names)))
-        long = long_votes >= needed
-        short = short_votes >= needed
-        # Conflicting quorums are intentionally neutral rather than arbitrarily
-        # selecting a direction.
-        conflict = long & short
-        long &= ~conflict
-        short &= ~conflict
+        long_raw = long_votes >= needed
+        short_raw = short_votes >= needed
+        conflict = long_raw & short_raw
+        long = _edge(long_raw & ~conflict)
+        short = _edge(short_raw & ~conflict)
 
     overlays: dict[str, pd.Series] = {}
     panes: dict[str, pd.Series] = {}
