@@ -39,7 +39,10 @@
     "min_sample_trades": 20,
     "min_walk_forward_pass_rate_pct": 60.0,
     "max_drawdown_pct": 5.0,
-    "min_net_expectancy_usdt": 0.0
+    "min_net_expectancy_usdt": 0.0,
+    "holdout_fraction": 0.25,
+    "min_holdout_trades": 5,
+    "min_holdout_expectancy_usdt": 0.0
   },
   "features": {
     "paper_recovery": true,
@@ -68,6 +71,7 @@
       "label": "Break-Even Throughput",
       "objective": "Break-Even Throughput",
       "min_net_expectancy_usdt": 0.0,
+      "min_holdout_expectancy_usdt": 0.0,
       "target_buffers_pct": [0.0, 0.005, 0.01, 0.02, 0.04]
     }
   }

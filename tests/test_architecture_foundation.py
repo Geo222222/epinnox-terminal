@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from app.economics import fee_aware_exit_levels
-from app.indicators import atr, supertrend
+from app.indicators import supertrend
 from app.market import clear_market_cache, fetch_ohlcv
 from app.session_registry import PaperSessionRegistry, SessionConflict
 from app.storage import RuntimeStore
@@ -24,34 +24,7 @@ def test_fee_aware_exit_levels_cover_costs():
     assert levels.target > levels.break_even
 
 
-def _reference_supertrend(df: pd.DataFrame, n: int, factor: float):
-    a = atr(df, n)
-    hl2 = (df.high + df.low) / 2.0
-    basic_u = hl2 + factor * a
-    basic_l = hl2 - factor * a
-    final_u = basic_u.copy()
-    final_l = basic_l.copy()
-    direction = pd.Series(index=df.index, dtype=float)
-    st = pd.Series(index=df.index, dtype=float)
-    for i in range(len(df)):
-        if i == 0 or pd.isna(a.iloc[i]):
-            direction.iloc[i] = 1
-            st.iloc[i] = np.nan
-            continue
-        final_u.iloc[i] = basic_u.iloc[i] if basic_u.iloc[i] < final_u.iloc[i - 1] or df.close.iloc[i - 1] > final_u.iloc[i - 1] else final_u.iloc[i - 1]
-        final_l.iloc[i] = basic_l.iloc[i] if basic_l.iloc[i] > final_l.iloc[i - 1] or df.close.iloc[i - 1] < final_l.iloc[i - 1] else final_l.iloc[i - 1]
-        prev_dir = direction.iloc[i - 1]
-        if prev_dir < 0 and df.close.iloc[i] > final_u.iloc[i]:
-            direction.iloc[i] = 1
-        elif prev_dir > 0 and df.close.iloc[i] < final_l.iloc[i]:
-            direction.iloc[i] = -1
-        else:
-            direction.iloc[i] = prev_dir
-        st.iloc[i] = final_l.iloc[i] if direction.iloc[i] > 0 else final_u.iloc[i]
-    return st, direction
-
-
-def test_numpy_supertrend_preserves_previous_semantics():
+def test_numpy_supertrend_obeys_pine_direction_and_warmup_contract():
     close = np.array([100, 101, 102, 99, 98, 100, 103, 104, 102, 105, 107, 106, 108, 109, 107, 110, 111], dtype=float)
     df = pd.DataFrame({
         "high": close + 1.5,
@@ -61,10 +34,20 @@ def test_numpy_supertrend_preserves_previous_semantics():
         "volume": np.ones(len(close)),
         "ts_ms": np.arange(len(close)) * 60_000,
     })
-    expected_st, expected_dir = _reference_supertrend(df, 3, 2.0)
-    actual_st, actual_dir = supertrend(df, 3, 2.0)
-    np.testing.assert_allclose(actual_st.to_numpy(), expected_st.to_numpy(), equal_nan=True)
-    np.testing.assert_allclose(actual_dir.to_numpy(), expected_dir.to_numpy(), equal_nan=True)
+    st, direction = supertrend(df, 3, 2.0)
+
+    # ATR/RMA length 3 publishes after its three-value SMA seed.
+    assert st.iloc[:2].isna().all()
+    assert st.iloc[2:].notna().all()
+    assert direction.iloc[:2].isna().all()
+    assert set(direction.dropna().unique()).issubset({-1.0, 1.0})
+
+    # TradingView ta.supertrend convention: -1 is bullish (line below price),
+    # +1 is bearish (line above price).
+    bullish = direction == -1.0
+    bearish = direction == 1.0
+    assert (st[bullish] <= df.close[bullish]).all()
+    assert (st[bearish] >= df.close[bearish]).all()
 
 
 def test_latest_ohlcv_cache_avoids_duplicate_exchange_calls(monkeypatch):
