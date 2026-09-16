@@ -16,7 +16,9 @@ jobs:
       - run: pip install -r requirements.txt
       - run: pytest -q --junitxml=pytest-report.xml
       - name: Check frontend JavaScript syntax
-        run: node --check web/app.js
+        run: |
+          node --check web/app.js
+          node --check web/persistence.js
       - name: Upload pytest report
         if: always()
         uses: actions/upload-artifact@v4
