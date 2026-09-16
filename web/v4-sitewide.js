@@ -2,8 +2,9 @@
   if(window.__EPINNOX_V4_SITEWIDE__)return;
   window.__EPINNOX_V4_SITEWIDE__=true;
   const $=id=>document.getElementById(id);
-  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
   const codeOf=s=>String(s||'').split('/')[0].replace(/[^A-Z0-9]/gi,'').toUpperCase()||'—';
+  let tableObserverScheduled=false;
 
   function icon(symbol,size='sm'){
     if(window.EpinnoxChrome?.iconMarkup)return window.EpinnoxChrome.iconMarkup(symbol,size);
@@ -16,13 +17,13 @@
   }
 
   function installMarketIdentity(){const identity=document.querySelector('.market-identity');if(!identity||$('siteMarketIcon'))return;const holder=document.createElement('span');holder.id='siteMarketIcon';holder.className='site-market-icon';identity.insertBefore(holder,identity.firstChild);updateMarketIdentity();$('symbol')?.addEventListener('change',updateMarketIdentity)}
-  function updateMarketIdentity(){const holder=$('siteMarketIcon'),symbol=$('symbol')?.value;if(holder)holder.innerHTML=symbol?icon(symbol,'md'):''}
+  function updateMarketIdentity(){const holder=$('siteMarketIcon'),symbol=$('symbol')?.value||'';if(!holder)return;if(holder.dataset.symbol===symbol)return;holder.dataset.symbol=symbol;holder.innerHTML=symbol?icon(symbol,'md'):''}
 
   function installRailArt(){const rail=$('sessionRail');if(!rail||rail.querySelector('.site-rail-art'))return;const art=document.createElement('div');art.className='site-rail-art';art.innerHTML='<div class="site-rail-art-land"></div><span>DISCIPLINE<br>BUILDS FREEDOM</span>';const foot=rail.querySelector('.rail-foot');rail.insertBefore(art,foot||null)}
 
   function decorateScanner(){document.querySelectorAll('#v4ScannerRows tr').forEach(row=>{const cell=row.children?.[2];if(!cell||cell.querySelector('.site-inline-asset'))return;const raw=cell.textContent.trim();if(!raw.includes('/'))return;cell.innerHTML=`<span class="site-inline-asset">${icon(raw,'xs')}<span><b>${esc(codeOf(raw))}</b><em>${esc(raw)}</em></span></span>`})}
   function decorateUniverseBottom(){document.querySelectorAll('#universeBottomBody tbody tr').forEach(row=>{const cell=row.children?.[1];if(!cell||cell.querySelector('.site-inline-asset'))return;const raw=cell.textContent.trim();if(!raw||raw.length>20)return;const match=(window.EpinnoxWorkbench?.current?.symbol&&codeOf(window.EpinnoxWorkbench.current.symbol)===raw)?window.EpinnoxWorkbench.current.symbol:`${raw}/USDT:USDT`;cell.innerHTML=`<span class="site-inline-asset compact">${icon(match,'xs')}<span><b>${esc(raw)}</b></span></span>`})}
-  function observeTables(){const root=document.querySelector('.workspace');if(!root)return;const run=()=>{decorateScanner();decorateUniverseBottom();updateMarketIdentity()};run();new MutationObserver(run).observe(root,{subtree:true,childList:true})}
+  function observeTables(){const root=document.querySelector('.workspace');if(!root)return;const run=()=>{tableObserverScheduled=false;decorateScanner();decorateUniverseBottom()};run();new MutationObserver(()=>{if(tableObserverScheduled)return;tableObserverScheduled=true;requestAnimationFrame(run)}).observe(root,{subtree:true,childList:true})}
 
   function installSurfacePulse(){const top=document.querySelector('.topbar');if(!top||$('siteSurfacePulse'))return;const pulse=document.createElement('div');pulse.id='siteSurfacePulse';pulse.className='site-surface-pulse';pulse.innerHTML='<i></i><span>INTELLIGENCE ONLINE</span>';top.appendChild(pulse)}
 
