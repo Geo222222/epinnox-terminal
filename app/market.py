@@ -27,6 +27,7 @@ TIMEFRAME_SPECS: dict[str, dict[str, int | str | bool]] = {
 }
 
 _CACHE_LOCK = threading.RLock()
+_EXCHANGE_LOCK = threading.RLock()
 _CACHE: dict[tuple[Any, ...], tuple[float, list[dict]]] = {}
 _CACHE_MAX = 256
 LATEST_TTL_SECONDS = 5.0
@@ -37,6 +38,15 @@ RANGE_TTL_SECONDS = 300.0
 def exchange():
     klass = getattr(ccxt, "htx", None) or getattr(ccxt, "huobi")
     return klass({"enableRateLimit": True, "options": {"defaultType": "swap"}})
+
+
+def _fetch_exchange_ohlcv(*args, **kwargs):
+    # ``exchange()`` is a singleton so that CCXT can reuse market metadata and
+    # rate-limit state. CCXT clients are not treated as thread-safe here; the
+    # bounded compute executor may have multiple workers, so serialize client
+    # access while allowing indicator/backtest CPU work to run concurrently.
+    with _EXCHANGE_LOCK:
+        return exchange().fetch_ohlcv(*args, **kwargs)
 
 
 def timeframe_ms(timeframe: str) -> int:
@@ -148,13 +158,12 @@ def _source_spec(timeframe: str) -> tuple[str, int]:
 
 
 def _fetch_raw_range(symbol: str, source: str, source_ms: int, start_ts_ms: int, end_ts_ms: int, max_bars: int) -> list[dict]:
-    ex = exchange()
     since = int(start_ts_ms)
     out: list[dict] = []
     seen: set[int] = set()
     while since <= end_ts_ms and len(out) < max_bars:
         batch_size = min(1000, max_bars - len(out))
-        rows = ex.fetch_ohlcv(symbol, timeframe=source, since=since, limit=batch_size)
+        rows = _fetch_exchange_ohlcv(symbol, timeframe=source, since=since, limit=batch_size)
         if not rows:
             break
         advanced = False
@@ -185,7 +194,7 @@ def fetch_ohlcv(symbol: str, timeframe: str, limit: int) -> list[dict]:
     spec = TIMEFRAME_SPECS[timeframe]
     factor = int(spec.get("factor", 1))
     if factor == 1 and not spec.get("calendar_month"):
-        rows = exchange().fetch_ohlcv(symbol, timeframe=str(spec["source"]), limit=limit)
+        rows = _fetch_exchange_ohlcv(symbol, timeframe=str(spec["source"]), limit=limit)
         out = _rows_to_candles(rows)
     else:
         end = int(time.time() * 1000)
@@ -225,8 +234,8 @@ def fetch_ohlcv_range(
 
 
 def symbols() -> list[str]:
-    ex = exchange()
-    markets = ex.load_markets()
+    with _EXCHANGE_LOCK:
+        markets = exchange().load_markets()
     out = []
     for sym, m in markets.items():
         if m.get("swap") and m.get("linear") and m.get("quote") == "USDT" and m.get("active", True):
