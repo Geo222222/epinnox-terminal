@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Strategies · Epinnox Terminal</title>
+  <link rel="icon" type="image/webp" href="/static/assets/epinnox-mark.webp" />
+  <link rel="stylesheet" href="/static/product-pages.css" />
+  <link rel="stylesheet" href="/static/strategies.css" />
+</head>
+<body>
+  <div class="product-shell">
+    <header class="product-header">
+      <a class="product-brand" href="/"><img src="/static/assets/epinnox-mark.webp" alt="Epinnox" /><div><strong>EPINNOX TERMINAL</strong><span>Capital intelligence · Serving Benjamin</span></div></a>
+      <div class="product-health"><i></i><span>Strategy catalog</span></div>
+      <div class="product-mode"><span class="product-badge live">15 deterministic models</span><span class="product-badge">Composite ready</span></div>
+    </header>
+    <div class="product-layout">
+      <aside class="product-sidebar">
+        <div class="nav-label">PRIMARY</div>
+        <nav class="product-nav">
+          <a href="/"><span class="nav-icon">CH</span><span class="nav-copy"><strong>Terminal</strong><span>Chart & backtest</span></span></a>
+          <a href="/scanner"><span class="nav-icon">SC</span><span class="nav-copy"><strong>Scanner</strong><span>Opportunity discovery</span></span></a>
+          <a href="/sessions"><span class="nav-icon">PS</span><span class="nav-copy"><strong>Sessions</strong><span>Paper operations</span></span></a>
+          <a href="/research"><span class="nav-icon">EV</span><span class="nav-copy"><strong>Research</strong><span>Evidence library</span></span></a>
+          <a class="active" href="/strategies"><span class="nav-icon">ST</span><span class="nav-copy"><strong>Strategies</strong><span>Models & presets</span></span></a>
+        </nav>
+        <div class="sidebar-status"><strong>Qualification note</strong><br />1m–30m have dedicated presets. Longer chart intervals currently inherit the 30m parameter source.</div>
+      </aside>
+      <main class="product-main strategy-page">
+        <div class="page-head">
+          <div><span class="page-kicker">MODEL LIBRARY</span><h1>Strategies</h1><p>Understand which deterministic signal models are available, how their parameter presets vary by timeframe, and which named configurations you have saved for repeated research.</p></div>
+          <div class="page-actions"><a class="ep-btn" href="/scanner">Scan models</a><a class="ep-btn primary" href="/">Configure in Terminal</a></div>
+        </div>
+
+        <section class="kpi-grid">
+          <div class="kpi"><span>Strategies</span><b id="strategyCount">—</b><small>deterministic signal models</small></div>
+          <div class="kpi"><span>Native preset bands</span><b>4</b><small>1m · 5m · 15m · 30m</small></div>
+          <div class="kpi"><span>Composite policies</span><b id="policyCount">—</b><small>single + confirmation modes</small></div>
+          <div class="kpi"><span>Named presets</span><b id="strategyPresetCount">—</b><small>saved workstation configs</small></div>
+        </section>
+
+        <div class="strategy-toolbar panel"><div class="filter-row"><input id="strategySearch" class="ep-input" placeholder="Search strategy…" /><select id="strategyCategory" class="ep-select"><option value="ALL">All families</option><option value="TREND">Trend</option><option value="MOMENTUM">Momentum</option><option value="MEAN_REVERSION">Mean reversion</option><option value="BREAKOUT">Breakout</option></select></div><div class="compact-note">Preset source is explicit so a long chart interval never pretends to have independently qualified parameters.</div></div>
+
+        <div class="strategy-layout">
+          <section class="panel"><div class="panel-head"><div class="panel-title"><h2>MODEL CATALOG</h2><span id="catalogMeta">loading</span></div></div><div id="strategyCatalog" class="strategy-catalog"><div class="empty-state"><div><strong>Loading strategy catalog</strong><p>Model and timeframe configuration is read from the Terminal API.</p></div></div></div></section>
+          <aside class="section-stack">
+            <section class="panel"><div class="panel-head"><div class="panel-title"><h2>PRESET SOURCE</h2><span>timeframe mapping</span></div></div><div id="timeframeSources" class="source-list"></div></section>
+            <section class="panel"><div class="panel-head"><div class="panel-title"><h2>SAVED CONFIGURATIONS</h2><span>named presets</span></div></div><div id="strategyPresets" class="source-list"><div class="compact-note">Loading presets…</div></div></section>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script type="module" src="/static/strategies.js"></script>
+</body>
+</html>
