@@ -2,7 +2,7 @@
   if(window.__EPINNOX_V4_SITEWIDE__)return;
   window.__EPINNOX_V4_SITEWIDE__=true;
   const $=id=>document.getElementById(id);
-  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const codeOf=s=>String(s||'').split('/')[0].replace(/[^A-Z0-9]/gi,'').toUpperCase()||'—';
   let tableObserverScheduled=false;
 
