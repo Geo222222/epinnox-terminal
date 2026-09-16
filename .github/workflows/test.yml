@@ -34,6 +34,8 @@ jobs:
           node --check web/v4-universe-safety.js
       - name: Verify workstation assets
         run: |
+          test -s scripts/runtime_smoke.py
+          test -s docs/RUNTIME_VALIDATION.md
           test -s web/workstation.css
           test -s web/v4-shell.css
           test -s web/v4-workbench.css
@@ -96,6 +98,8 @@ jobs:
           grep -q 'SESSION REGISTRY' web/sessions.html
           grep -q 'PINNED BACKTESTS' web/research.html
           grep -q 'MODEL CATALOG' web/strategies.html
+      - name: Runtime HTTP smoke test
+        run: python scripts/runtime_smoke.py
       - name: Upload pytest report
         if: always()
         uses: actions/upload-artifact@v4

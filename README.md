@@ -132,6 +132,18 @@ A normal server shutdown writes a restart checkpoint and leaves the durable sess
 
 LIVE is intentionally not armed here. `epinnox-online` already owns credentials, venue mutation safety, confirmations, position reconciliation and HTX execution. A separate qualification milestone should wire autonomous live strategy intents through those existing controls rather than bypassing them.
 
+## Runtime verification
+
+Repository-level tests are followed by a real-process HTTP smoke gate:
+
+```bash
+python scripts/runtime_smoke.py
+```
+
+The script boots FastAPI through Uvicorn, verifies the canonical pages, health/config contracts, Scanner persistence endpoint, and the final V4/Universe/visual-QA assets, then shuts the process down. It does not request live market data or perform execution mutations.
+
+See [`docs/RUNTIME_VALIDATION.md`](docs/RUNTIME_VALIDATION.md) for the complete automated and manual browser validation sequence and definition of done.
+
 ## Tests
 
 ```bash
