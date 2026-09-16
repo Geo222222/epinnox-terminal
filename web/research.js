@@ -1,0 +1,20 @@
+const $=id=>document.getElementById(id);
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=(v,d=2)=>v===null||v===undefined||Number.isNaN(Number(v))?'—':`$${Number(v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d})}`;
+const n=(v,d=2)=>v===null||v===undefined||Number.isNaN(Number(v))?'—':Number(v).toFixed(d);
+const PIN_KEY='epinnox.v4.pins.v1',WORKSPACE_KEY='epinnox.workspace.v1';
+
+function loadPins(){try{const x=JSON.parse(localStorage.getItem(PIN_KEY)||'[]');return Array.isArray(x)?x:[]}catch{return[]}}
+function itemIndex(i){return String(i+1).padStart(2,'0')}
+function date(ms){return ms?new Date(ms).toLocaleString():'—'}
+function loadPin(pin){localStorage.setItem(WORKSPACE_KEY,JSON.stringify({schema_version:1,saved_at_ms:Date.now(),mode:'BACKTEST',values:{...(pin.config||{})}}));location.href='/'}
+
+function renderPins(pins){$('researchPinsCount').textContent=pins.length;if(!pins.length)return;$('researchPins').innerHTML=pins.slice().reverse().map((p,i)=>`<div class="research-item"><div class="research-item-index">${itemIndex(i)}</div><div class="research-item-main"><strong>${esc(p.symbol||'—')} · ${esc(p.timeframe||'—')} · ${esc(p.strategy||'—')}</strong><span>${esc(p.profile||'Backtest')} · saved ${esc(date(p.saved_at_ms))}</span></div><div class="research-item-meta"><b class="${Number(p.metrics?.total_equity_pnl)>=0?'positive':'negative'}">${money(p.metrics?.total_equity_pnl)}</b><button class="ep-btn load-pin" data-pin="${esc(p.id)}">Load</button></div></div>`).join('');document.querySelectorAll('.load-pin').forEach(b=>b.addEventListener('click',()=>{const p=pins.find(x=>String(x.id)===b.dataset.pin);if(p)loadPin(p)}))}
+
+async function renderScans(){try{const d=await fetch('/api/scanner/runs?limit=20').then(r=>r.json()),runs=Array.isArray(d.runs)?d.runs:[];$('researchScansCount').textContent=runs.length;if(!runs.length)return;$('researchScans').innerHTML=runs.map((r,i)=>{const b=r.summary?.best_candidate;return `<div class="research-item"><div class="research-item-index">${itemIndex(i)}</div><div class="research-item-main"><strong>${esc(r.objective)}</strong><span>${esc(date(r.completed_at_ms))} · ${r.summary?.evaluated??0} evaluated · ${r.summary?.qualified??0} qualified${b?` · best ${esc(b.symbol)} ${esc(b.timeframe)} ${esc(b.strategy)}`:''}</span></div><div class="research-item-meta"><b>${r.summary?.qualified??0} pass</b><a class="ep-btn" href="/scanner">Open</a></div></div>`}).join('')}catch(e){$('researchScans').innerHTML=`<div class="empty-state"><div><strong>Scanner history unavailable</strong><p>${esc(e.message)}</p></div></div>`;$('researchScansCount').textContent='—'}}
+
+async function renderPresets(){try{const d=await fetch('/api/settings/presets').then(r=>r.json()),rows=Array.isArray(d.presets)?d.presets:[];$('researchPresetsCount').textContent=rows.length;if(!rows.length)return;$('researchPresets').innerHTML=rows.map((p,i)=>{const v=p.payload||{};return `<div class="research-item"><div class="research-item-index">${itemIndex(i)}</div><div class="research-item-main"><strong>${esc(p.name)}</strong><span>${esc(v.symbol||'Any symbol')} · ${esc(v.timeframe||'—')} · ${esc(v.strategy||'—')} · updated ${esc(date(p.updated_at_ms))}</span></div><div class="research-item-meta"><span class="product-badge">preset</span></div></div>`}).join('')}catch(e){$('researchPresets').innerHTML=`<div class="empty-state"><div><strong>Preset library unavailable</strong><p>${esc(e.message)}</p></div></div>`;$('researchPresetsCount').textContent='—'}}
+
+async function renderSessions(){try{const d=await fetch('/api/sessions?limit=250').then(r=>r.json());$('researchSessionsCount').textContent=Array.isArray(d.sessions)?d.sessions.length:0}catch{$('researchSessionsCount').textContent='—'}}
+
+const pins=loadPins();renderPins(pins);await Promise.all([renderScans(),renderPresets(),renderSessions()]);
