@@ -112,7 +112,7 @@ def run() -> None:
         )
 
         for path, marker in {
-            "/": 'id="sessionRail"',
+            "/": 'src="/static/chart-workstation-v2.js"',
             "/scanner": "CANDIDATE LEADERBOARD",
             "/sessions": "SESSION REGISTRY",
             "/research": "UNIVERSE CANDIDATES",
@@ -121,6 +121,8 @@ def run() -> None:
             assert_contains(path, marker)
 
         for path, marker in {
+            "/static/chart-workstation-v2.js": "cwExecutionLayer",
+            "/static/chart-workstation-v2.css": ".cw-series-gutter",
             "/static/v4-shell.js": "v4-universe-safety.js",
             "/static/v4-universe-refine.js": "Cross-scan market evidence",
             "/static/v4-universe-safety.js": "leaveUniverseForMode",
