@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from functools import lru_cache
+import threading
 import time
+from typing import Any
 
 import ccxt
 
@@ -21,10 +23,14 @@ TIMEFRAME_SPECS: dict[str, dict[str, int | str | bool]] = {
     "1d": {"source": "1d", "factor": 1, "ms": 86_400_000},
     "5d": {"source": "1d", "factor": 5, "ms": 432_000_000},
     "1w": {"source": "1w", "factor": 1, "ms": 604_800_000},
-    # Month bars are aggregated from daily candles so behavior is consistent
-    # even when an exchange uses a venue-specific monthly timeframe spelling.
     "1M": {"source": "1d", "factor": 31, "ms": 2_592_000_000, "calendar_month": True},
 }
+
+_CACHE_LOCK = threading.RLock()
+_CACHE: dict[tuple[Any, ...], tuple[float, list[dict]]] = {}
+_CACHE_MAX = 256
+LATEST_TTL_SECONDS = 5.0
+RANGE_TTL_SECONDS = 300.0
 
 
 @lru_cache(maxsize=1)
@@ -38,6 +44,41 @@ def timeframe_ms(timeframe: str) -> int:
         return int(TIMEFRAME_SPECS[timeframe]["ms"])
     except KeyError as exc:
         raise ValueError(f"Unsupported timeframe: {timeframe}") from exc
+
+
+def _copy_candles(rows: list[dict]) -> list[dict]:
+    return [dict(row) for row in rows]
+
+
+def _cache_get(key: tuple[Any, ...], ttl_seconds: float) -> list[dict] | None:
+    now = time.monotonic()
+    with _CACHE_LOCK:
+        item = _CACHE.get(key)
+        if item is None:
+            return None
+        stored_at, rows = item
+        if now - stored_at > ttl_seconds:
+            _CACHE.pop(key, None)
+            return None
+        return _copy_candles(rows)
+
+
+def _cache_put(key: tuple[Any, ...], rows: list[dict]) -> None:
+    with _CACHE_LOCK:
+        if len(_CACHE) >= _CACHE_MAX:
+            oldest = min(_CACHE.items(), key=lambda item: item[1][0])[0]
+            _CACHE.pop(oldest, None)
+        _CACHE[key] = (time.monotonic(), _copy_candles(rows))
+
+
+def cache_stats() -> dict[str, int]:
+    with _CACHE_LOCK:
+        return {"entries": len(_CACHE), "max_entries": _CACHE_MAX}
+
+
+def clear_market_cache() -> None:
+    with _CACHE_LOCK:
+        _CACHE.clear()
 
 
 def _rows_to_candles(rows) -> list[dict]:
@@ -136,16 +177,23 @@ def _fetch_raw_range(symbol: str, source: str, source_ms: int, start_ts_ms: int,
 def fetch_ohlcv(symbol: str, timeframe: str, limit: int) -> list[dict]:
     if timeframe not in TIMEFRAME_SPECS:
         raise ValueError(f"Unsupported timeframe: {timeframe}")
+    key = ("latest", symbol, timeframe, int(limit))
+    cached = _cache_get(key, LATEST_TTL_SECONDS)
+    if cached is not None:
+        return cached
+
     spec = TIMEFRAME_SPECS[timeframe]
     factor = int(spec.get("factor", 1))
     if factor == 1 and not spec.get("calendar_month"):
         rows = exchange().fetch_ohlcv(symbol, timeframe=str(spec["source"]), limit=limit)
-        return _rows_to_candles(rows)
-    end = int(time.time() * 1000)
-    width = timeframe_ms(timeframe)
-    # Add two buckets of headroom for a partial current bar and sparse exchange data.
-    start = end - (max(1, limit) + 2) * width
-    return fetch_ohlcv_range(symbol, timeframe, start, end, max_bars=max(limit + 2, 100))[-limit:]
+        out = _rows_to_candles(rows)
+    else:
+        end = int(time.time() * 1000)
+        width = timeframe_ms(timeframe)
+        start = end - (max(1, limit) + 2) * width
+        out = fetch_ohlcv_range(symbol, timeframe, start, end, max_bars=max(limit + 2, 100))[-limit:]
+    _cache_put(key, out)
+    return _copy_candles(out)
 
 
 def fetch_ohlcv_range(
@@ -160,16 +208,20 @@ def fetch_ohlcv_range(
         raise ValueError("start_ts_ms must be before end_ts_ms")
     if timeframe not in TIMEFRAME_SPECS:
         raise ValueError(f"Unsupported timeframe: {timeframe}")
+    key = ("range", symbol, timeframe, int(start_ts_ms), int(end_ts_ms), int(max_bars))
+    cached = _cache_get(key, RANGE_TTL_SECONDS)
+    if cached is not None:
+        return cached
+
     source, source_ms = _source_spec(timeframe)
     spec = TIMEFRAME_SPECS[timeframe]
     factor = int(spec.get("factor", 1))
-    # Bound source paging independently from output bars. The month case needs
-    # daily source rows, while intraday custom bars need factor source rows.
     source_cap = min(250_000, max_bars * max(1, factor) + max(100, factor * 4))
     raw = _fetch_raw_range(symbol, source, source_ms, start_ts_ms - source_ms * factor, end_ts_ms, source_cap)
     out = _aggregate(raw, timeframe)
-    out = [row for row in out if start_ts_ms <= int(row["ts_ms"]) <= end_ts_ms]
-    return out[:max_bars]
+    out = [row for row in out if start_ts_ms <= int(row["ts_ms"]) <= end_ts_ms][:max_bars]
+    _cache_put(key, out)
+    return _copy_candles(out)
 
 
 def symbols() -> list[str]:
