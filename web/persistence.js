@@ -29,6 +29,36 @@
 
   const optionExists = (el, value) => !el.options || [...el.options].some(o => o.value === String(value));
 
+  function installV4ShellChrome() {
+    if (!document.querySelector('link[href="/static/v4-shell.css"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = '/static/v4-shell.css';
+      document.head.appendChild(link);
+    }
+    const workspace = document.querySelector('.workspace');
+    if (workspace && !document.getElementById('sessionRail')) {
+      const rail = document.createElement('aside');
+      rail.id = 'sessionRail';
+      rail.className = 'session-rail';
+      rail.setAttribute('aria-label', 'Workspaces and paper sessions');
+      rail.innerHTML = `
+        <div class="rail-head"><span class="rail-kicker">SESSIONS</span><span id="sessionCount" class="rail-count">0</span></div>
+        <div class="rail-primary">
+          <button id="railBacktest" class="rail-workspace active" type="button"><strong>BACKTEST</strong><span>Research workspace</span></button>
+        </div>
+        <div id="sessionList" class="session-list"><div class="rail-empty">Loading durable sessions…</div></div>
+        <div class="rail-foot"><a class="rail-link" href="/scanner">⌁ Opportunity Scanner</a><span class="rail-link" aria-disabled="true">◎ Live sessions · locked</span></div>`;
+      workspace.prepend(rail);
+    }
+    if (!document.querySelector('script[src="/static/v4-shell.js"]')) {
+      const script = document.createElement('script');
+      script.src = '/static/v4-shell.js';
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+  }
+
   function setField(id, value, emit = false) {
     const el = document.getElementById(id);
     if (!el || value === undefined || value === null) return false;
@@ -207,6 +237,7 @@
       const response = await fetch('/api/paper-live/recover', { method: 'POST' });
       const body = await response.json();
       if (!response.ok) throw new Error(body.detail || 'Recovery failed');
+      document.dispatchEvent(new CustomEvent('epinnox:session-mutated'));
     } catch (error) {
       const state = document.getElementById('paperState');
       if (state) state.textContent = `Paper recovery failed: ${error.message}`;
@@ -288,6 +319,9 @@
           metrics: data.metrics,
         });
       }
+      if ((target.includes('/api/paper-live/') || target.includes('/api/sessions/')) && method !== 'GET' && response.ok) {
+        document.dispatchEvent(new CustomEvent('epinnox:session-mutated'));
+      }
     } catch { /* diagnostics persistence must never break fetch */ }
     return response;
   };
@@ -311,6 +345,11 @@
     },
   };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootPersistence);
-  else bootPersistence();
+  function start() {
+    installV4ShellChrome();
+    bootPersistence();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
 })();
