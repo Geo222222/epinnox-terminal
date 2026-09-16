@@ -44,7 +44,7 @@ class Position:
 
 
 class Backtester:
-    """Sequential OHLC replay with Pine-parity entry timing and composite signals."""
+    """Sequential OHLC replay with Pine-style entry timing and auditable exits."""
 
     def __init__(self, df: pd.DataFrame, req: BacktestRequest):
         self.df = df.reset_index(drop=True)
@@ -68,6 +68,14 @@ class Backtester:
         self.equity_curve: list[dict] = []
         self.open_snapshot: dict | None = None
 
+    @property
+    def parity_mode(self) -> bool:
+        return self.req.backtest_profile == "TradingView Parity"
+
+    @property
+    def liquidation_enabled(self) -> bool:
+        return self.req.backtest_profile == "Simplified Isolated"
+
     def _rates(self) -> tuple[float, float, float, float]:
         return (
             self.req.entry_fee_pct / 100.0,
@@ -87,11 +95,29 @@ class Backtester:
             target = avg * (1 - entry_r - extra_r - profit_r) / (1 + exit_r)
         return be, target
 
-    def _liq(self, p: Position) -> float:
+    def _liq(self, p: Position) -> float | None:
+        if not self.liquidation_enabled:
+            return None
         mm = self.req.maintenance_margin_pct / 100.0
         if p.side == "long":
             return max(0.0, p.avg * (1 - 1 / self.req.leverage + mm))
         return p.avg * (1 + 1 / self.req.leverage - mm)
+
+    def _liquidation_receipt(self, p: Position, row, liq: float) -> dict:
+        adverse_extreme = float(row.low) if p.side == "long" else float(row.high)
+        distance_pct = abs(liq - p.avg) / p.avg * 100.0 if p.avg else 0.0
+        return {
+            "model": "Simplified isolated estimate",
+            "entry_price": p.avg,
+            "leverage": self.req.leverage,
+            "maintenance_margin_pct": self.req.maintenance_margin_pct,
+            "estimated_liquidation_price": liq,
+            "candle_low": float(row.low),
+            "candle_high": float(row.high),
+            "adverse_extreme": adverse_extreme,
+            "distance_from_entry_pct": distance_pct,
+            "note": "Research approximation only; not an authoritative HTX liquidation price.",
+        }
 
     def _layer_notional(self, equity: float) -> float:
         return max(0.0, equity * self.req.leverage * (self.req.allocation_pct / 100.0))
@@ -138,7 +164,7 @@ class Backtester:
         gross = (price - p.avg) * p.qty if p.side == "long" else (p.avg - price) * p.qty
         return self.cash + gross - p.funding
 
-    def _close(self, i: int, price: float, reason: str) -> None:
+    def _close(self, i: int, price: float, reason: str, exit_receipt: dict | None = None) -> None:
         p = self.position
         if not p:
             return
@@ -174,6 +200,7 @@ class Backtester:
                 "mfe_pct": p.mfe_pct,
                 "bars_held": bars,
                 "exit_reason": reason,
+                "exit_receipt": exit_receipt,
                 "entry_confirmation": receipts[0] if receipts else [],
                 "layer_confirmations": receipts,
             }
@@ -191,7 +218,8 @@ class Backtester:
 
     def run(self) -> dict:
         tf_ms = {"1m": 60_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000}[self.req.timeframe]
-        funding_rate_per_ms = (self.req.funding_bps_per_8h / 10_000.0) / (8 * 60 * 60 * 1000)
+        funding_bps = 0.0 if self.parity_mode else self.req.funding_bps_per_8h
+        funding_rate_per_ms = (funding_bps / 10_000.0) / (8 * 60 * 60 * 1000)
 
         for i, row in self.df.iterrows():
             close = float(row.close)
@@ -205,7 +233,7 @@ class Backtester:
                 p.mfe_pct = max(p.mfe_pct, float(favorable))
                 _, target = self._target(p)
                 liq = self._liq(p)
-                liquidated = (p.side == "long" and row.low <= liq) or (p.side == "short" and row.high >= liq)
+                liquidated = bool(liq is not None and ((p.side == "long" and row.low <= liq) or (p.side == "short" and row.high >= liq)))
 
                 stop_hit = False
                 stop_price = None
@@ -217,8 +245,8 @@ class Backtester:
                 target_hit = (p.side == "long" and row.high >= target) or (p.side == "short" and row.low <= target)
                 timed_out = self.req.max_bars_in_trade is not None and i - p.entry_bar >= self.req.max_bars_in_trade
 
-                if liquidated:
-                    self._close(i, liq, "liquidation")
+                if liquidated and liq is not None:
+                    self._close(i, liq, "liquidation", self._liquidation_receipt(p, row, liq))
                 elif stop_hit and stop_price is not None:
                     self._close(i, stop_price, "stop")
                 elif target_hit:
@@ -257,6 +285,7 @@ class Backtester:
                 "break_even": be,
                 "profit_target": target,
                 "liquidation": self._liq(p),
+                "liquidation_model": "disabled" if not self.liquidation_enabled else "Simplified isolated estimate",
                 "open_pnl": self._mark_equity(last) - self.cash,
                 "mae_pct": p.mae_pct,
                 "mfe_pct": p.mfe_pct,
@@ -276,6 +305,7 @@ class Backtester:
         total_fees = sum(t["total_fee"] for t in self.closed)
         referral = sum(t["referral_commission"] for t in self.closed)
         target_hits = sum(t["exit_reason"] == "target" for t in self.closed)
+        liquidation_exits = sum(t["exit_reason"] == "liquidation" for t in self.closed)
         days = max(1.0, (self.df.ts_ms.iloc[-1] - self.df.ts_ms.iloc[0]) / 86_400_000) if len(self.df) > 1 else 1.0
         net_closed = sum(t["net_pnl"] for t in self.closed)
         last_eq = self.equity_curve[-1]["equity"] if self.equity_curve else self.req.starting_balance
@@ -295,6 +325,7 @@ class Backtester:
             "referral_revenue": referral,
             "trades_per_day": len(self.closed) / days,
             "referral_revenue_per_day": referral / days,
+            "liquidation_exits": liquidation_exits,
         }
 
         def serial(series: pd.Series) -> list[dict]:
@@ -309,6 +340,19 @@ class Backtester:
             "symbol": self.req.symbol,
             "timeframe": self.req.timeframe,
             "strategy": self.req.strategy,
+            "backtest_profile": self.req.backtest_profile,
+            "backtest_window": {
+                "start_ts_ms": int(self.df.ts_ms.iloc[0]),
+                "end_ts_ms": int(self.df.ts_ms.iloc[-1]),
+                "candles": len(self.df),
+            },
+            "simulation": {
+                "liquidation_enabled": self.liquidation_enabled,
+                "liquidation_model": "Simplified isolated estimate" if self.liquidation_enabled else "Disabled for TradingView parity",
+                "funding_bps_per_8h_effective": 0.0 if self.parity_mode else self.req.funding_bps_per_8h,
+                "entry_timing": "signal evaluated on bar close; entry filled at that close",
+                "exit_timing": "existing positions evaluate candle high/low before new close entries",
+            },
             "entry_model": {
                 "label": model_label,
                 "primary": self.req.strategy,
