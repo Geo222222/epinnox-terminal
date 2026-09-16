@@ -30,6 +30,8 @@ jobs:
           node --check web/v4-universe.js
           node --check web/v4-final-chrome.js
           node --check web/v4-sitewide.js
+          node --check web/v4-universe-refine.js
+          node --check web/v4-universe-safety.js
       - name: Verify workstation assets
         run: |
           test -s web/workstation.css
@@ -44,6 +46,10 @@ jobs:
           test -s web/v4-final-chrome.js
           test -s web/v4-sitewide.css
           test -s web/v4-sitewide.js
+          test -s web/v4-universe-refine.css
+          test -s web/v4-universe-refine.js
+          test -s web/v4-universe-safety.css
+          test -s web/v4-universe-safety.js
           test -s web/product-pages.css
           test -s web/product-chrome.css
           test -s web/product-chrome.js
@@ -65,6 +71,15 @@ jobs:
           grep -q 'v4-universe.js' web/v4-shell.js
           grep -q 'v4-final-chrome.js' web/v4-shell.js
           grep -q 'v4-sitewide.js' web/v4-shell.js
+          grep -q 'v4-universe-refine.js' web/v4-shell.js
+          grep -q 'v4-universe-safety.css' web/v4-shell.js
+          grep -q 'v4-universe-safety.js' web/v4-shell.js
+          grep -q 'Cross-scan market evidence' web/v4-universe-refine.js
+          grep -q 'Paper qualification is blocked' web/v4-universe-refine.js
+          grep -q 'WHY THIS CANDIDATE FAILED' web/v4-universe-safety.js
+          grep -q 'leaveUniverseForMode' web/v4-universe-safety.js
+          grep -q 'epinnox.universe.saved.v1' web/research.js
+          grep -q 'UNIVERSE CANDIDATES' web/research.html
           grep -q 'href="/sessions"' web/v4-shell.js
           grep -q 'product-chrome.js' web/scanner.html
           grep -q 'product-chrome.js' web/sessions.html

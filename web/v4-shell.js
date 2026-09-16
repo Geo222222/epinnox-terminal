@@ -47,6 +47,28 @@
     polish.defer=true;
     document.body.appendChild(polish);
   }
+  // Universe research assets load after global chrome so research-only semantics
+  // and safety gates own the final behavior/cascade while this surface is active.
+  if(!document.querySelector('link[href="/static/v4-universe-refine.css"]')){
+    const universeRefineStyle=document.createElement('link');
+    universeRefineStyle.rel='stylesheet';universeRefineStyle.href='/static/v4-universe-refine.css';document.head.appendChild(universeRefineStyle);
+  }
+  if(!document.querySelector('link[href="/static/v4-universe-safety.css"]')){
+    const universeSafetyStyle=document.createElement('link');
+    universeSafetyStyle.rel='stylesheet';universeSafetyStyle.href='/static/v4-universe-safety.css';document.head.appendChild(universeSafetyStyle);
+  }
+  if(!document.querySelector('script[src="/static/v4-universe-refine.js"]')){
+    const universeRefine=document.createElement('script');
+    universeRefine.src='/static/v4-universe-refine.js';
+    universeRefine.defer=true;
+    document.body.appendChild(universeRefine);
+  }
+  if(!document.querySelector('script[src="/static/v4-universe-safety.js"]')){
+    const universeSafety=document.createElement('script');
+    universeSafety.src='/static/v4-universe-safety.js';
+    universeSafety.defer=true;
+    document.body.appendChild(universeSafety);
+  }
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
   const list=document.getElementById('sessionList');
