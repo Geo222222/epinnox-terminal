@@ -58,8 +58,10 @@ jobs:
           grep -q 'v4-command-center.js' web/v4-shell.js
           grep -q 'v4-universe.js' web/v4-shell.js
           grep -q 'v4-universe-refine.js' web/v4-shell.js
-          grep -q 'cross-scan market evidence' web/v4-universe-refine.js
+          grep -q 'Cross-scan market evidence' web/v4-universe-refine.js
           grep -q 'Paper qualification is blocked' web/v4-universe-refine.js
+          grep -q 'epinnox.universe.saved.v1' web/research.js
+          grep -q 'UNIVERSE CANDIDATES' web/research.html
           grep -q 'href="/sessions"' web/v4-shell.js
           grep -q 'CANDIDATE LEADERBOARD' web/scanner.html
           grep -q 'SESSION REGISTRY' web/sessions.html
