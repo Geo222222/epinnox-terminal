@@ -21,16 +21,20 @@ jobs:
           node --check web/persistence.js
           node --check web/scanner.js
           node --check web/v4-shell.js
+          node --check web/v4-workbench.js
       - name: Verify workstation assets
         run: |
           test -s web/workstation.css
           test -s web/v4-shell.css
+          test -s web/v4-workbench.css
+          test -s web/v4-workbench.js
           grep -q "execution/accounts" app/main.py
           grep -q "drawingToolbar" web/app.js
           grep -q 'id="sessionRail"' web/index.html
           grep -q 'id="accountSelector"' web/index.html
           grep -q 'Manage presets' web/index.html
           grep -q 'SCANNER' web/index.html
+          grep -q 'v4-workbench.js' web/v4-shell.js
       - name: Upload pytest report
         if: always()
         uses: actions/upload-artifact@v4
