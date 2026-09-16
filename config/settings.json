@@ -28,10 +28,25 @@
     "max_range_bars": 50000,
     "funding_bps_per_8h": 0.0
   },
+  "scanner_defaults": {
+    "symbols": ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"],
+    "timeframes": ["1m", "5m"],
+    "strategies": ["Supertrend", "Stochastic Reversal", "EMA Crossover", "Bollinger Mean Reversion"],
+    "objective": "Capital Growth",
+    "history_bars": 2000,
+    "target_buffers_pct": [0.0, 0.005, 0.01, 0.02, 0.04, 0.08],
+    "walk_forward_windows": 4,
+    "min_sample_trades": 20,
+    "min_walk_forward_pass_rate_pct": 60.0,
+    "max_drawdown_pct": 5.0,
+    "min_net_expectancy_usdt": 0.0
+  },
   "features": {
     "paper_recovery": true,
     "named_presets": true,
     "workspace_persistence": true,
+    "opportunity_scanner": true,
+    "adaptive_target_model": false,
     "live_execution": false
   },
   "specials": {
@@ -48,6 +63,12 @@
       "leverage": 200.0,
       "allocation_pct": 5.0,
       "maintenance_margin_pct": 0.4
+    },
+    "break_even_throughput": {
+      "label": "Break-Even Throughput",
+      "objective": "Break-Even Throughput",
+      "min_net_expectancy_usdt": 0.0,
+      "target_buffers_pct": [0.0, 0.005, 0.01, 0.02, 0.04]
     }
   }
 }
