@@ -5,7 +5,7 @@ from statistics import median
 import pandas as pd
 
 from .models import BacktestRequest
-from .strategies import build_strategy
+from .strategies import build_entry_model, entry_receipt
 
 
 @dataclass
@@ -14,6 +14,7 @@ class Layer:
     price: float
     qty: float
     fee: float
+    receipt: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -43,19 +44,21 @@ class Position:
 
 
 class Backtester:
-    """Sequential OHLC replay engine.
-
-    Signals are evaluated on completed bars. A market entry fills at that bar's
-    close. Exit conditions begin on the next loop/bar, so pre-entry movement in
-    the signal candle can never fill the target. If a single later OHLC candle
-    contains both a risk boundary and a profit target, the risk boundary wins;
-    this is intentionally conservative without intrabar evidence.
-    """
+    """Sequential OHLC replay with Pine-parity entry timing and composite signals."""
 
     def __init__(self, df: pd.DataFrame, req: BacktestRequest):
         self.df = df.reset_index(drop=True)
         self.req = req
-        self.logic = build_strategy(self.df, req.strategy, req.timeframe, req.manual_params)
+        self.logic = build_entry_model(
+            self.df,
+            req.strategy,
+            req.timeframe,
+            req.manual_params,
+            req.confirmations,
+            req.confirmation_policy,
+            req.confirmation_required,
+            req.confirmation_window_bars,
+        )
         self.cash = req.starting_balance
         self.equity_peak = req.starting_balance
         self.max_drawdown = 0.0
@@ -85,8 +88,6 @@ class Backtester:
         return be, target
 
     def _liq(self, p: Position) -> float:
-        # PAPER approximation only. LIVE mode must display the venue-provided
-        # liquidation price from epinnox-online/HTX instead of this value.
         mm = self.req.maintenance_margin_pct / 100.0
         if p.side == "long":
             return max(0.0, p.avg * (1 - 1 / self.req.leverage + mm))
@@ -116,14 +117,17 @@ class Backtester:
         self.cash -= fee
         if not self.position:
             self.position = Position(side=side, entry_bar=i)
-        self.position.layers.append(Layer(int(self.df.ts_ms.iloc[i]), price, qty, fee))
+        receipt = entry_receipt(self.logic, i, side)
+        self.position.layers.append(Layer(int(self.df.ts_ms.iloc[i]), price, qty, fee, receipt))
+        matched = sum(1 for x in receipt if x["matched"])
         self.markers.append(
             {
                 "ts_ms": int(self.df.ts_ms.iloc[i]),
                 "price": price,
                 "kind": "entry",
                 "side": side,
-                "text": f"{side.upper()} #{len(self.position.layers)}",
+                "text": f"{side.upper()} #{len(self.position.layers)} · {matched}/{len(receipt)}",
+                "receipt": receipt,
             }
         )
 
@@ -142,12 +146,11 @@ class Backtester:
         exit_fee = exit_notional * (self.req.exit_fee_pct / 100.0)
         gross = (price - p.avg) * p.qty if p.side == "long" else (p.avg - price) * p.qty
         net = gross - p.entry_fees - exit_fee - p.funding
-        # Entry fees were debited at entry. Margin is reserved conceptually, not
-        # removed from cash, so closing realizes gross PnL and remaining costs.
         self.cash += gross - exit_fee - p.funding
         total_fee = p.entry_fees + exit_fee
         referral = total_fee * self.req.referral_share_pct / 100.0
         bars = i - p.entry_bar
+        receipts = [layer.receipt for layer in p.layers]
         self.closed.append(
             {
                 "trade": len(self.closed) + 1,
@@ -171,6 +174,8 @@ class Backtester:
                 "mfe_pct": p.mfe_pct,
                 "bars_held": bars,
                 "exit_reason": reason,
+                "entry_confirmation": receipts[0] if receipts else [],
+                "layer_confirmations": receipts,
             }
         )
         self.markers.append(
@@ -258,6 +263,7 @@ class Backtester:
                 "bars_held": len(self.df) - 1 - p.entry_bar,
                 "used_margin": self._used_margin(),
                 "free_collateral": max(0.0, self.cash - self._used_margin()),
+                "entry_confirmation": p.layers[0].receipt if p.layers else [],
             }
 
         return self._result()
@@ -298,10 +304,19 @@ class Backtester:
                     out.append({"ts_ms": int(self.df.ts_ms.iloc[idx]), "value": float(value)})
             return out
 
+        model_label = self.req.strategy if self.req.confirmation_policy == "Single" else f"{self.req.strategy} + {' + '.join(self.req.confirmations)}"
         return {
             "symbol": self.req.symbol,
             "timeframe": self.req.timeframe,
             "strategy": self.req.strategy,
+            "entry_model": {
+                "label": model_label,
+                "primary": self.req.strategy,
+                "confirmations": self.req.confirmations,
+                "policy": self.req.confirmation_policy,
+                "required": self.req.confirmation_required,
+                "window_bars": self.req.confirmation_window_bars,
+            },
             "params": self.logic["params"],
             "metrics": metrics,
             "trades": self.closed,
