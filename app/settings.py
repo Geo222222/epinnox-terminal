@@ -7,6 +7,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 SETTINGS_PATH = ROOT / "config" / "settings.json"
+LAST_KNOWN_GOOD_PATH = ROOT / "data" / "settings.last-known-good.json"
 
 FALLBACK_SETTINGS: dict[str, Any] = {
     "schema_version": 1,
@@ -58,16 +59,27 @@ def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def load_settings() -> dict[str, Any]:
-    if not SETTINGS_PATH.exists():
-        return deepcopy(FALLBACK_SETTINGS)
+def _read_valid(path: Path) -> dict[str, Any] | None:
     try:
-        raw = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        raw = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-        return deepcopy(FALLBACK_SETTINGS)
+        return None
     if not isinstance(raw, dict) or raw.get("schema_version") != 1:
-        return deepcopy(FALLBACK_SETTINGS)
+        return None
     return _merge(FALLBACK_SETTINGS, raw)
+
+
+def load_settings() -> dict[str, Any]:
+    current = _read_valid(SETTINGS_PATH) if SETTINGS_PATH.exists() else None
+    if current is not None:
+        try:
+            LAST_KNOWN_GOOD_PATH.parent.mkdir(parents=True, exist_ok=True)
+            LAST_KNOWN_GOOD_PATH.write_text(json.dumps(current, indent=2, sort_keys=True), encoding="utf-8")
+        except Exception:
+            pass
+        return current
+    previous = _read_valid(LAST_KNOWN_GOOD_PATH) if LAST_KNOWN_GOOD_PATH.exists() else None
+    return previous if previous is not None else deepcopy(FALLBACK_SETTINGS)
 
 
 def public_settings() -> dict[str, Any]:
