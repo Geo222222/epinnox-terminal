@@ -37,6 +37,16 @@
     chrome.defer=true;
     document.body.appendChild(chrome);
   }
+  if(!document.querySelector('link[href="/static/v4-sitewide.css"]')){
+    const polishStyle=document.createElement('link');
+    polishStyle.rel='stylesheet';polishStyle.href='/static/v4-sitewide.css';document.head.appendChild(polishStyle);
+  }
+  if(!document.querySelector('script[src="/static/v4-sitewide.js"]')){
+    const polish=document.createElement('script');
+    polish.src='/static/v4-sitewide.js';
+    polish.defer=true;
+    document.body.appendChild(polish);
+  }
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
   const list=document.getElementById('sessionList');
