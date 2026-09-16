@@ -85,13 +85,16 @@ class ScannerRequest(BaseModel):
     timeframes: list[Literal["1m", "5m", "15m", "30m"]] = Field(default_factory=lambda: ["1m", "5m"], min_length=1, max_length=4)
     strategies: list[str] = Field(default_factory=lambda: ["Supertrend", "Stochastic Reversal", "EMA Crossover", "Bollinger Mean Reversion"], min_length=1, max_length=15)
     objective: ScannerObjective = "Capital Growth"
-    history_bars: int = Field(2000, ge=300, le=10000)
+    history_bars: int = Field(2000, ge=600, le=10000)
     target_buffers_pct: list[float] = Field(default_factory=lambda: [0.0, 0.005, 0.01, 0.02, 0.04, 0.08], min_length=1, max_length=12)
     walk_forward_windows: int = Field(4, ge=2, le=8)
     min_sample_trades: int = Field(20, ge=1, le=10000)
     min_walk_forward_pass_rate_pct: float = Field(60.0, ge=0, le=100)
     max_drawdown_pct: float = Field(5.0, gt=0, le=100)
     min_net_expectancy_usdt: float = Field(0.0, ge=-1000000, le=1000000)
+    holdout_fraction: float = Field(0.25, ge=0.10, le=0.50)
+    min_holdout_trades: int = Field(5, ge=1, le=10000)
+    min_holdout_expectancy_usdt: float = Field(0.0, ge=-1000000, le=1000000)
     starting_balance: float = Field(100000.0, gt=0)
     leverage: float = Field(1.0, ge=1, le=200)
     allocation_pct: float = Field(5.0, gt=0, le=100)
@@ -115,8 +118,18 @@ class ScannerRequest(BaseModel):
         if not self.symbols or not self.timeframes or not self.strategies or not self.target_buffers_pct:
             raise ValueError("scanner requires at least one symbol, timeframe, strategy, and target")
         evaluations = len(self.symbols) * len(self.timeframes) * len(self.strategies) * len(self.target_buffers_pct)
-        if evaluations > 1200:
-            raise ValueError("scanner request is too large; reduce symbols/timeframes/strategies/targets below 1200 combinations")
+        estimated_simulations = evaluations * (2 + self.walk_forward_windows)
+        if evaluations > 1200 or estimated_simulations > 6000:
+            raise ValueError(
+                "scanner request is too large; reduce symbols/timeframes/strategies/targets or validation windows "
+                "so estimated simulations stay at or below 6000"
+            )
+        calibration_bars = int(self.history_bars * (1.0 - self.holdout_fraction))
+        if calibration_bars < self.walk_forward_windows * 100:
+            raise ValueError("scanner calibration segment is too small for the requested walk-forward windows")
+        holdout_bars = self.history_bars - calibration_bars
+        if holdout_bars < 100:
+            raise ValueError("scanner holdout segment must contain at least 100 bars")
         return self
 
 
