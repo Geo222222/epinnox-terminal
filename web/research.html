@@ -29,11 +29,12 @@
       </aside>
       <main class="product-main research-page">
         <div class="page-head">
-          <div><span class="page-kicker">EVIDENCE LIBRARY</span><h1>Research</h1><p>One place for pinned backtests, persisted scanner experiments and named workstation presets. This is the handoff layer between discovery, inspection and paper qualification.</p></div>
+          <div><span class="page-kicker">EVIDENCE LIBRARY</span><h1>Research</h1><p>One place for saved Universe candidates, pinned backtests, persisted scanner experiments and named workstation presets. This is the handoff layer between discovery, inspection and paper qualification.</p></div>
           <div class="page-actions"><a class="ep-btn" href="/scanner">Run scanner</a><a class="ep-btn primary" href="/">New backtest</a></div>
         </div>
 
-        <section class="kpi-grid">
+        <section class="kpi-grid research-kpis">
+          <div class="kpi"><span>Saved candidates</span><b id="researchCandidatesCount">—</b><small>Universe evidence</small></div>
           <div class="kpi"><span>Pinned backtests</span><b id="researchPinsCount">—</b><small>browser evidence</small></div>
           <div class="kpi"><span>Scanner experiments</span><b id="researchScansCount">—</b><small>durable runs</small></div>
           <div class="kpi"><span>Named presets</span><b id="researchPresetsCount">—</b><small>reusable configurations</small></div>
@@ -41,6 +42,11 @@
         </section>
 
         <div class="research-grid">
+          <section class="panel research-candidates">
+            <div class="panel-head"><div class="panel-title"><h2>UNIVERSE CANDIDATES</h2><span>saved cross-scan evidence before chart inspection</span></div><a class="ep-btn" href="/scanner">Expand evidence</a></div>
+            <div id="researchCandidates" class="research-list research-candidate-list"><div class="empty-state"><div><strong>No saved candidates</strong><p>Save a candidate from Universe when it deserves inspection or comparison.</p></div></div></div>
+          </section>
+
           <section class="panel research-pins">
             <div class="panel-head"><div class="panel-title"><h2>PINNED BACKTESTS</h2><span>comparative experiments from the Terminal</span></div><a class="ep-btn" href="/">Compare in Terminal</a></div>
             <div id="researchPins" class="research-list"><div class="empty-state"><div><strong>No pinned backtests</strong><p>Pin a backtest from the bottom workbench to preserve it here.</p></div></div></div>
@@ -59,10 +65,10 @@
           <section class="panel research-flow">
             <div class="panel-head"><div class="panel-title"><h2>QUALIFICATION FLOW</h2><span>how Epinnox should move an idea forward</span></div></div>
             <div class="qualification-flow">
-              <article><span>01</span><div><strong>Discover</strong><p>Use Scanner to find candidate market/strategy/target combinations.</p></div></article>
+              <article><span>01</span><div><strong>Discover</strong><p>Use Scanner and Universe to surface candidate market/strategy/target combinations.</p></div></article>
               <article><span>02</span><div><strong>Inspect</strong><p>Load a candidate into the chart and verify signals, trades and economics.</p></div></article>
               <article><span>03</span><div><strong>Compare</strong><p>Pin competing backtests and compare evidence side-by-side.</p></div></article>
-              <article><span>04</span><div><strong>Paper qualify</strong><p>Bind a paper account and let a durable session operate under the same configuration.</p></div></article>
+              <article><span>04</span><div><strong>Paper qualify</strong><p>Only qualified evidence moves into Paper, where account context and Start remain explicit.</p></div></article>
             </div>
           </section>
         </div>
