@@ -40,7 +40,7 @@
 .universe-empty-inspector{padding:18px 10px;text-align:center;color:#718078;font-size:9px;line-height:1.5}
 .universe-mini-metrics{text-align:right}
 .universe-mini-metrics b{display:block;color:#e5efe9;font-size:9px}
-.universe-mini-metrics span{display:block;color:#74857c;font-size:7px;margin-top:2px}
+.universe-mini-metrics span{display:block;color:#74857d;font-size:7px;margin-top:2px}
 .universe-history-list{display:grid;gap:6px}
 .universe-history-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:8px;border:1px solid #15231c;background:#050907}
 .universe-history-item strong,.universe-history-item b{display:block;color:#e2ece6;font-size:8px}
@@ -96,7 +96,7 @@
 .universe-active .market-strip::before{content:"UNIVERSE RESEARCH";display:inline-flex;align-items:center;height:30px;padding:0 10px;border:1px solid rgba(16,255,139,.22);border-radius:3px;background:rgba(16,255,139,.055);color:#c8ffe0;font-size:9px;font-weight:850;letter-spacing:.09em}
 .universe-active .market-strip::after{content:"Cross-scan evidence · multi-market scope · execution context disabled";color:#6c8075;font-size:8px;letter-spacing:.04em}
 .universe-active #openStrategyTab,.universe-active .rail-foot .rail-link[aria-disabled="true"]{display:none!important}
-.universe-active .statusbar .status-left,.universe-active .statusbar .status-right{display:none!important}
+.universe-active .statusbar .status-left,.universe-active .statusbar .status-right,.universe-active .statusbar .chrome-footer,.universe-active .statusbar .chrome-footer-system{display:none!important}
 .universe-active .statusbar::before{content:"●  Universe evidence workspace · scanner qualification remains authoritative";color:#6f8579;font-size:8px;letter-spacing:.025em}
 .universe-active .statusbar::after{content:"Research only · no execution mutation from this surface";margin-left:auto;color:#597067;font-size:8px}
 .universe-canvas-panel:has(.universe-coverage-callout:not(.hidden)) .universe-cy{opacity:.12;filter:blur(.8px)}
