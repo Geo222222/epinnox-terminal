@@ -27,6 +27,7 @@ jobs:
           node --check web/v4-workbench.js
           node --check web/v4-command-center.js
           node --check web/v4-universe.js
+          node --check web/v4-universe-refine.js
       - name: Verify workstation assets
         run: |
           test -s web/workstation.css
@@ -37,6 +38,8 @@ jobs:
           test -s web/v4-command-center.js
           test -s web/v4-universe.css
           test -s web/v4-universe.js
+          test -s web/v4-universe-refine.css
+          test -s web/v4-universe-refine.js
           test -s web/product-pages.css
           test -s web/scanner.html
           test -s web/sessions.html
@@ -54,6 +57,9 @@ jobs:
           grep -q 'v4-workbench.js' web/v4-shell.js
           grep -q 'v4-command-center.js' web/v4-shell.js
           grep -q 'v4-universe.js' web/v4-shell.js
+          grep -q 'v4-universe-refine.js' web/v4-shell.js
+          grep -q 'cross-scan market evidence' web/v4-universe-refine.js
+          grep -q 'Paper qualification is blocked' web/v4-universe-refine.js
           grep -q 'href="/sessions"' web/v4-shell.js
           grep -q 'CANDIDATE LEADERBOARD' web/scanner.html
           grep -q 'SESSION REGISTRY' web/sessions.html
