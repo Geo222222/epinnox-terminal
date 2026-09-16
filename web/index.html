@@ -6,12 +6,14 @@
   <title>Epinnox Terminal</title>
   <link rel="icon" type="image/webp" href="/static/assets/epinnox-mark.webp" />
   <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/workstation.css" />
+  <link rel="stylesheet" href="/static/v4-shell.css" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div class="brand-block">
-        <div class="brand-mark" style="overflow:hidden;border-color:rgba(16,255,139,.42);background:#020705"><img src="/static/assets/epinnox-mark.webp" alt="Epinnox" style="width:100%;height:100%;display:block;object-fit:cover" /></div>
+        <div class="brand-mark"><img src="/static/assets/epinnox-mark.webp" alt="Epinnox" /></div>
         <div><div class="brand-name">EPINNOX TERMINAL</div><div class="brand-subtitle">Capital intelligence · Serving Benjamin</div></div>
       </div>
       <div class="topbar-center"><span class="connection-dot"></span><span id="connectionText">HTX market connected</span></div>
@@ -24,12 +26,18 @@
 
     <section class="market-strip">
       <div class="market-identity">
-        <select id="symbol" class="symbol-select"></select>
+        <select id="symbol" class="symbol-select" aria-label="Market symbol"></select>
         <div class="market-price-block"><span id="quotePrice" class="market-price">—</span><span id="quoteChange" class="market-change">—</span></div>
       </div>
       <div class="timeframes" aria-label="Timeframe">
         <button class="tf" data-tf="1m">1m</button><button class="tf active" data-tf="5m">5m</button><button class="tf" data-tf="15m">15m</button><button class="tf" data-tf="30m">30m</button>
         <select id="timeframe" class="sr-only"><option>1m</option><option selected>5m</option><option>15m</option><option>30m</option></select>
+      </div>
+      <div id="executionContext" class="execution-context hidden" aria-label="Execution account context">
+        <span class="context-label">ACCOUNT</span>
+        <select id="accountSelector" aria-label="Execution account"><option value="">Choose account…</option></select>
+        <button id="refreshAccounts" class="context-refresh" title="Refresh Epinnox Online accounts" aria-label="Refresh accounts">↻</button>
+        <span id="accountContextBadge" class="context-badge">SESSION</span>
       </div>
       <div class="market-meta">
         <div><span>Venue</span><b>HTX</b></div><div><span>Engine</span><b>Sequential</b></div><div><span>Environment</span><b id="modeText">BACKTEST</b></div>
@@ -37,18 +45,30 @@
     </section>
 
     <main class="workspace">
+      <aside id="sessionRail" class="session-rail" aria-label="Workspaces and paper sessions">
+        <div class="rail-head"><span class="rail-kicker">WORKSPACE</span><span id="sessionCount" class="rail-count">0</span></div>
+        <div class="rail-primary">
+          <button id="railBacktest" class="rail-workspace active" type="button"><strong>CHART</strong><span>Research workspace</span></button>
+          <a class="rail-workspace rail-workspace-link" href="/scanner"><strong>SCANNER</strong><span>Opportunity research</span></a>
+        </div>
+        <div class="rail-section-label">PAPER SESSIONS</div>
+        <div id="sessionList" class="session-list"><div class="rail-empty">Loading durable sessions…</div></div>
+        <div class="rail-foot">
+          <button id="railStrategy" class="rail-link rail-button" type="button">⚙ Strategy configuration</button>
+          <span class="rail-link" aria-disabled="true">◎ Live sessions · locked</span>
+        </div>
+      </aside>
+
       <section class="chart-workspace">
         <div class="chart-toolbar">
           <div class="chart-title-group">
             <div class="symbol-badge">ETH</div>
-            <div><div id="chartTitle" class="chart-title">ETH/USDT:USDT · 5m</div><div id="entryModelSummary" class="chart-subtitle">Supertrend · Single</div></div>
+            <div class="chart-identity-copy"><div id="chartTitle" class="chart-title">ETH/USDT:USDT · 5m</div><div id="entryModelSummary" class="chart-subtitle">Supertrend · Single</div></div>
           </div>
-          <div class="chart-actions">
-            <a href="/scanner" class="chart-tool emphasis" style="text-decoration:none">Scanner</a>
-            <span id="profileBadge" class="mini-tag">TradingView Parity</span>
-            <button id="fitChart" class="chart-tool">Fit</button>
-            <button id="toggleIndicator" class="chart-tool">Indicator</button>
-            <button id="openStrategyTab" class="chart-tool emphasis">Strategy settings</button>
+          <div class="chart-actions" aria-label="Chart controls">
+            <span id="profileBadge" class="mini-tag chart-profile">TradingView Parity</span>
+            <button id="fitChart" class="chart-tool" title="Fit chart">Fit</button>
+            <button id="toggleIndicator" class="chart-tool" title="Toggle indicator pane">Indicator</button>
           </div>
         </div>
         <div class="chart-legend">
@@ -68,12 +88,12 @@
         </div>
 
         <div id="positionPanel" class="inspector-panel active">
-          <div class="inspector-section">
+          <div class="inspector-section inspector-hero-section">
             <div class="section-heading"><span class="eyebrow">POSITION</span><span id="positionStatus" class="status-pill neutral">FLAT</span></div>
             <div id="openPosition" class="position-card">No open position</div>
           </div>
           <div class="inspector-section account-glance">
-            <div class="section-heading"><span class="eyebrow">ACCOUNT MODEL</span><span class="mini-tag">simulation</span></div>
+            <div class="section-heading"><span class="eyebrow">ACCOUNT</span><span class="mini-tag">simulation</span></div>
             <div class="glance-grid"><div><span>Balance</span><b id="glanceBalance">$100,000</b></div><div><span>Leverage</span><b id="glanceLeverage">1×</b></div><div><span>Allocation</span><b id="glanceAllocation">5%</b></div><div><span>Layer notional</span><b id="glanceNotional">$5,000</b></div></div>
           </div>
           <div class="inspector-section">
@@ -83,63 +103,76 @@
           <div class="inspector-section paper-section">
             <div class="section-heading"><span class="eyebrow">PAPER LIVE</span><span class="status-pill neutral" id="paperBadge">OFF</span></div>
             <div id="paperState" class="paper-card">Not running.</div>
-            <div class="paper-actions"><button id="paperStart" class="paper-action" disabled>Start paper strategy</button><button id="paperRecover" class="paper-action hidden">Recover</button><button id="paperStop" class="danger-action" disabled>Stop</button></div>
+            <div class="paper-actions"><button id="paperStart" class="paper-action" disabled>Start strategy</button><button id="paperRecover" class="paper-action hidden">Recover</button><button id="paperStop" class="danger-action" disabled>Stop</button></div>
           </div>
         </div>
 
         <div id="strategyPanel" class="inspector-panel">
-          <div class="inspector-section">
-            <div class="section-heading"><span class="eyebrow">WORKSPACE PRESETS</span><span class="mini-tag">durable</span></div>
-            <div class="settings-grid">
-              <div class="preset-row"><select id="namedPreset"><option value="">Saved preset…</option></select><button id="presetApply" class="chart-tool">Apply</button></div>
-              <div class="preset-row"><input id="presetName" type="text" maxlength="80" placeholder="ETH 1m Stoch" /><button id="presetSave" class="chart-tool emphasis">Save</button><button id="presetDelete" class="danger-action">Delete</button></div>
-              <p id="presetStatus" class="muted compact-help">Workspace fields also autosave locally in this browser.</p>
-            </div>
+          <div class="strategy-headline">
+            <div><span class="eyebrow">STRATEGY WORKSPACE</span><h2>Configure experiment</h2></div>
+            <span id="autoApplyBadge" class="status-pill long">AUTO APPLY</span>
           </div>
-          <div class="inspector-section">
-            <div class="section-heading"><span class="eyebrow">BACKTEST MODEL</span><span id="autoApplyBadge" class="status-pill long">AUTO APPLY</span></div>
-            <div class="settings-grid">
-              <label class="stack-setting"><span>Profile</span><select id="backtestProfile"><option>TradingView Parity</option><option>Simplified Isolated</option></select></label>
-              <p id="profileHelp" class="muted compact-help">TradingView Parity disables Terminal's custom liquidation estimate and funding so strategy behavior can be compared first.</p>
-              <div class="two-col"><label class="stack-setting"><span>Start</span><input id="startDate" type="datetime-local" /></label><label class="stack-setting"><span>End</span><input id="endDate" type="datetime-local" /></label></div>
-              <p class="muted compact-help">Set both dates to reproduce the same TradingView test window. Leave both blank to use the latest History bars.</p>
-            </div>
+
+          <div class="inspector-section preset-compact-section">
+            <div class="section-heading"><span class="eyebrow">PRESET</span><span class="mini-tag">durable</span></div>
+            <div class="preset-primary-row"><select id="namedPreset"><option value="">Saved preset…</option></select><button id="presetApply" class="chart-tool">Apply</button></div>
+            <details class="preset-manager">
+              <summary>Manage presets</summary>
+              <div class="preset-save-row"><input id="presetName" type="text" maxlength="80" placeholder="Name current setup" /><button id="presetSave" class="chart-tool emphasis">Save</button><button id="presetDelete" class="danger-action">Delete</button></div>
+            </details>
+            <p id="presetStatus" class="muted compact-help">Current workspace autosaves in this browser.</p>
           </div>
-          <div class="inspector-section">
-            <div class="section-heading"><span class="eyebrow">ENTRY MODEL</span></div>
-            <div class="settings-grid">
-              <label class="stack-setting"><span>Primary strategy</span><select id="strategy"></select></label>
-              <label class="stack-setting"><span>Confirmation 1</span><select id="confirm1"></select></label>
-              <label class="stack-setting"><span>Confirmation 2</span><select id="confirm2"></select></label>
-              <label class="stack-setting"><span>Policy</span><select id="confirmationPolicy"></select></label>
-              <div class="two-col"><label class="stack-setting"><span>Required</span><input id="confirmationRequired" type="number" value="2" min="1" max="3" /></label><label class="stack-setting"><span>Window (bars)</span><input id="confirmationWindow" type="number" value="1" min="1" max="100" /></label></div>
-              <label class="stack-setting"><span>Direction</span><select id="direction"><option>Both</option><option>Long Only</option><option>Short Only</option></select></label>
+
+          <details class="inspector-disclosure" open>
+            <summary><span>Entry model</span><small>Signal logic</small></summary>
+            <div class="inspector-section disclosure-body">
+              <div class="settings-grid">
+                <label class="stack-setting"><span>Primary strategy</span><select id="strategy"></select></label>
+                <label class="stack-setting"><span>Policy</span><select id="confirmationPolicy"></select></label>
+                <div class="two-col"><label class="stack-setting"><span>Confirmation 1</span><select id="confirm1"></select></label><label class="stack-setting"><span>Confirmation 2</span><select id="confirm2"></select></label></div>
+                <div class="two-col"><label class="stack-setting"><span>Required</span><input id="confirmationRequired" type="number" value="2" min="1" max="3" /></label><label class="stack-setting"><span>Window</span><input id="confirmationWindow" type="number" value="1" min="1" max="100" /></label></div>
+                <label class="stack-setting"><span>Direction</span><select id="direction"><option>Both</option><option>Long Only</option><option>Short Only</option></select></label>
+              </div>
             </div>
-          </div>
-          <div class="inspector-section">
-            <div class="section-heading"><span class="eyebrow">ACCOUNT & SIZING</span></div>
-            <div class="settings-grid">
-              <label class="setting-row"><span>History</span><div class="input-suffix"><input id="bars" type="number" value="1000" min="100" max="50000" step="100" /><em>bars</em></div></label>
-              <label class="setting-row"><span>Balance</span><div class="input-prefix"><em>$</em><input id="balance" type="number" value="100000" step="100" /></div></label>
-              <label class="setting-row"><span>Leverage</span><div class="input-suffix"><input id="leverage" type="number" value="1" min="1" max="200" /><em>×</em></div></label>
-              <label class="setting-row"><span>Allocation</span><div class="input-suffix"><input id="allocation" type="number" value="5" min="0.1" max="100" step="0.1" /><em>%</em></div></label>
-              <label class="setting-row"><span>Pyramiding</span><input id="pyramiding" type="number" value="1" min="1" max="20" /></label>
+          </details>
+
+          <details class="inspector-disclosure" open>
+            <summary><span>Backtest model</span><small>Profile & window</small></summary>
+            <div class="inspector-section disclosure-body">
+              <div class="settings-grid">
+                <label class="stack-setting"><span>Profile</span><select id="backtestProfile"><option>TradingView Parity</option><option>Simplified Isolated</option></select></label>
+                <p id="profileHelp" class="muted compact-help">TradingView Parity disables Terminal's custom liquidation estimate and funding so strategy behavior can be compared first.</p>
+                <div class="two-col"><label class="stack-setting"><span>Start</span><input id="startDate" type="datetime-local" /></label><label class="stack-setting"><span>End</span><input id="endDate" type="datetime-local" /></label></div>
+                <label class="setting-row"><span>History</span><div class="input-suffix"><input id="bars" type="number" value="1000" min="100" max="50000" step="100" /><em>bars</em></div></label>
+              </div>
             </div>
-          </div>
-          <div class="inspector-section">
-            <div class="section-heading"><span class="eyebrow">EXIT ENGINE</span><span class="mini-tag">fee-aware</span></div>
-            <div class="settings-grid">
-              <label class="setting-row"><span>Entry fee</span><div class="input-suffix"><input id="entryFee" type="number" value="0.05" step="0.001" /><em>%</em></div></label>
-              <label class="setting-row"><span>Exit fee</span><div class="input-suffix"><input id="exitFee" type="number" value="0.05" step="0.001" /><em>%</em></div></label>
-              <label class="setting-row"><span>Extra cost</span><div class="input-suffix"><input id="extraCost" type="number" value="0" step="0.001" /><em>%</em></div></label>
-              <label class="setting-row highlight-setting"><span>Net target</span><div class="input-suffix"><input id="netTarget" type="number" value="0.01" step="0.001" /><em>%</em></div></label>
-              <label class="setting-row"><span>Referral share</span><div class="input-suffix"><input id="referral" type="number" value="30" step="1" /><em>%</em></div></label>
-              <label class="setting-row"><span>Maint. margin</span><div class="input-suffix"><input id="maintenance" type="number" value="0.4" step="0.1" /><em>%</em></div></label>
-              <label class="setting-row"><span>Max bars</span><input id="maxBars" type="number" placeholder="Unlimited" /></label>
-              <label class="setting-row"><span>Stop loss</span><div class="input-suffix"><input id="stopLoss" type="number" placeholder="None" step="0.1" /><em>%</em></div></label>
+          </details>
+
+          <details class="inspector-disclosure">
+            <summary><span>Capital & sizing</span><small>Exposure controls</small></summary>
+            <div class="inspector-section disclosure-body">
+              <div class="settings-grid">
+                <label class="setting-row"><span>Balance</span><div class="input-prefix"><em>$</em><input id="balance" type="number" value="100000" step="100" /></div></label>
+                <label class="setting-row"><span>Leverage</span><div class="input-suffix"><input id="leverage" type="number" value="1" min="1" max="200" /><em>×</em></div></label>
+                <label class="setting-row"><span>Allocation</span><div class="input-suffix"><input id="allocation" type="number" value="5" min="0.1" max="100" step="0.1" /><em>%</em></div></label>
+                <label class="setting-row"><span>Pyramiding</span><input id="pyramiding" type="number" value="1" min="1" max="20" /></label>
+              </div>
             </div>
-            <details class="advanced-settings"><summary>Manual strategy parameters</summary><p class="muted">Leave blank for automatic timeframe presets.</p><textarea id="manualParams" rows="4" placeholder='{"atr":7,"factor":2.0}'></textarea></details>
-          </div>
+          </details>
+
+          <details class="inspector-disclosure">
+            <summary><span>Exit engine</span><small>Costs & risk</small></summary>
+            <div class="inspector-section disclosure-body">
+              <div class="settings-grid">
+                <label class="setting-row"><span>Net target</span><div class="input-suffix"><input id="netTarget" type="number" value="0.01" step="0.001" /><em>%</em></div></label>
+                <div class="two-col compact-fields"><label class="stack-setting"><span>Entry fee</span><input id="entryFee" type="number" value="0.05" step="0.001" /></label><label class="stack-setting"><span>Exit fee</span><input id="exitFee" type="number" value="0.05" step="0.001" /></label></div>
+                <div class="two-col compact-fields"><label class="stack-setting"><span>Extra cost %</span><input id="extraCost" type="number" value="0" step="0.001" /></label><label class="stack-setting"><span>Referral %</span><input id="referral" type="number" value="30" step="1" /></label></div>
+                <div class="two-col compact-fields"><label class="stack-setting"><span>Maint. margin %</span><input id="maintenance" type="number" value="0.4" step="0.1" /></label><label class="stack-setting"><span>Max bars</span><input id="maxBars" type="number" placeholder="Unlimited" /></label></div>
+                <label class="setting-row"><span>Stop loss</span><div class="input-suffix"><input id="stopLoss" type="number" placeholder="None" step="0.1" /><em>%</em></div></label>
+                <details class="advanced-settings"><summary>Manual strategy parameters</summary><p class="muted">Leave blank for automatic timeframe presets.</p><textarea id="manualParams" rows="4" placeholder='{"atr":7,"factor":2.0}'></textarea></details>
+              </div>
+            </div>
+          </details>
         </div>
       </aside>
     </main>
@@ -150,10 +183,7 @@
         <div class="dock-summary"><span id="dockTrades">0 trades</span><span id="dockPnl">P&L —</span></div>
       </div>
       <div id="tester" class="tab"></div>
-      <div id="trades" class="tab hidden">
-        <div class="trade-audit" id="tradeAudit"><span class="muted">Select a liquidation trade to inspect the exit receipt.</span></div>
-        <div class="table-wrap"><table><thead><tr><th>#</th><th>Side</th><th>Confirmations</th><th>Layers</th><th>Entry</th><th>Exit</th><th>Net P&L</th><th>Entry fee</th><th>Exit fee</th><th>Total fee</th><th>Referral</th><th>Lev</th><th>Margin</th><th>MAE</th><th>MFE</th><th>Bars</th><th>Reason</th><th>Audit</th></tr></thead><tbody id="tradeRows"></tbody></table></div>
-      </div>
+      <div id="trades" class="tab hidden"><div class="trade-audit" id="tradeAudit"><span class="muted">Select a liquidation trade to inspect the exit receipt.</span></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Side</th><th>Confirmations</th><th>Layers</th><th>Entry</th><th>Exit</th><th>Net P&L</th><th>Entry fee</th><th>Exit fee</th><th>Total fee</th><th>Referral</th><th>Lev</th><th>Margin</th><th>MAE</th><th>MFE</th><th>Bars</th><th>Reason</th><th>Audit</th></tr></thead><tbody id="tradeRows"></tbody></table></div></div>
       <div id="economics" class="tab hidden"></div>
       <div id="paperEvents" class="tab hidden"><div class="table-wrap"><table><thead><tr><th>Time</th><th>Kind</th><th>Detail</th></tr></thead><tbody id="paperEventRows"></tbody></table></div></div>
     </section>
@@ -161,6 +191,7 @@
     <footer class="statusbar"><div class="status-left"><span class="status-led"></span><span id="status">Ready.</span></div><div class="status-right"><span id="autoStatus">Backtest auto-apply enabled</span><span class="separator">•</span><span>Epinnox intelligence for Benjamin</span></div></footer>
   </div>
   <script src="/static/persistence.js"></script>
+  <script src="/static/v4-shell.js" defer></script>
   <script type="module" src="/static/app.js"></script>
 </body>
 </html>

@@ -1,4 +1,6 @@
 (()=>{
+  if(window.__EPINNOX_V4_SHELL__)return;
+  window.__EPINNOX_V4_SHELL__=true;
   if(!document.querySelector('script[src="/static/v4-workbench.js"]')){
     const workbench=document.createElement('script');
     workbench.src='/static/v4-workbench.js';
@@ -10,11 +12,12 @@
   const list=document.getElementById('sessionList');
   const count=document.getElementById('sessionCount');
   const backtest=document.getElementById('railBacktest');
+  const strategy=document.getElementById('railStrategy');
+  if(strategy)strategy.id='openStrategyTab';
   let selected=sessionStorage.getItem('epinnox.v4.selectedSession')||'';
   let timer=null;
 
   const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const shortId=id=>String(id||'').slice(0,8).toUpperCase();
   const symbolLabel=s=>String(s||'—').split(':')[0].replace('/','');
   const activeStates=new Set(['RUNNING','RECOVERED','RECONCILING','RECOVERY_REQUIRED']);
 
@@ -33,7 +36,7 @@
     if(!list)return;
     const active=rows.filter(x=>activeStates.has(String(x.status||'')));
     if(count)count.textContent=String(active.length);
-    if(!rows.length){list.innerHTML='<div class="rail-empty">No durable paper sessions yet.<br>Use Paper mode to start one from the current strategy.</div>';return}
+    if(!rows.length){list.innerHTML='<div class="rail-empty">No paper sessions yet.<br>Choose Paper mode and an account to start one.</div>';return}
     list.innerHTML=rows.map((s,i)=>{
       const id=String(s.session_id||'');
       const status=String(s.status||'UNKNOWN');
@@ -66,11 +69,8 @@
     modeButton('BACKTEST')?.click();
     list?.querySelectorAll('.session-card').forEach(x=>x.classList.remove('active'));
   });
-
-  document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',()=>{
-    if(btn.dataset.mode==='BACKTEST')setBacktestActive(true);
-    else setBacktestActive(false);
-  }));
+  strategy?.addEventListener('click',()=>document.querySelector('.inspector-tab[data-inspector-tab="strategyPanel"]')?.click());
+  document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',()=>setBacktestActive(btn.dataset.mode==='BACKTEST')));
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
   document.addEventListener('epinnox:session-mutated',refresh);
 
