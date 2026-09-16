@@ -1,4 +1,10 @@
 (()=>{
+  if(!document.querySelector('script[src="/static/v4-workbench.js"]')){
+    const workbench=document.createElement('script');
+    workbench.src='/static/v4-workbench.js';
+    workbench.defer=true;
+    document.body.appendChild(workbench);
+  }
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
   const list=document.getElementById('sessionList');
