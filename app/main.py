@@ -11,9 +11,11 @@ from fastapi.staticfiles import StaticFiles
 
 from .backtest import run_backtest
 from .market import fetch_ohlcv, fetch_ohlcv_range, symbols
-from .models import BacktestRequest
+from .models import BacktestRequest, ScannerRequest
 from .paper_live import PaperLiveManager
 from .presets import PRESETS, STRATEGIES
+from .scan_store import scan_store
+from .scanner import run_scanner
 from .settings import public_settings
 from .storage import runtime_store
 
@@ -29,13 +31,18 @@ async def lifespan(app: FastAPI):
     await paper_live.shutdown()
 
 
-app = FastAPI(title="Epinnox Terminal", version="0.4.0", lifespan=lifespan)
+app = FastAPI(title="Epinnox Terminal", version="0.5.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=WEB), name="static")
 
 
 @app.get("/")
 def index():
     return FileResponse(WEB / "index.html")
+
+
+@app.get("/scanner")
+def scanner_page():
+    return FileResponse(WEB / "scanner.html")
 
 
 @app.get("/api/config")
@@ -57,6 +64,7 @@ def config():
             "TradingView Parity",
             "Simplified Isolated",
         ],
+        "scanner_objectives": ["Capital Growth", "Break-Even Throughput"],
         "default_symbol": terminal["default_symbol"],
         "defaults": settings,
         "execution": {
@@ -138,11 +146,37 @@ def backtest(req: BacktestRequest):
         raise HTTPException(502, f"Backtest failed: {exc}") from exc
 
 
+@app.post("/api/scanner/run")
+def scanner_run(req: ScannerRequest):
+    try:
+        result = run_scanner(req)
+        scan_store.save(result)
+        return result
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, f"Opportunity scan failed: {exc}") from exc
+
+
+@app.get("/api/scanner/runs")
+def scanner_runs(limit: int = Query(20, ge=1, le=100)):
+    return {"schema_version": 1, "runs": scan_store.recent(limit)}
+
+
+@app.get("/api/scanner/runs/{scan_id}")
+def scanner_run_detail(scan_id: str):
+    result = scan_store.get(scan_id)
+    if result is None:
+        raise HTTPException(404, "Scan not found")
+    return result
+
+
 @app.get("/api/execution/status")
 def execution_status():
     base = os.getenv("EPINNOX_ONLINE_BASE_URL")
     return {
         "backtest": "ready",
+        "scanner": "ready",
         "paper": "ready" if base else "not-configured",
         "live": "not-armed",
         "paper_running": paper_live.state.running,
@@ -151,7 +185,7 @@ def execution_status():
         "epinnox_online_base_url": base,
         "note": (
             "PAPER uses durable SQLite checkpoints and reconciles epinnox-online on restart. "
-            "LIVE remains intentionally unarmed."
+            "OTS-01 scanner is deterministic research only. LIVE remains intentionally unarmed."
         ),
     }
 

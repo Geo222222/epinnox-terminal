@@ -67,6 +67,49 @@ class BacktestRequest(BaseModel):
         return self
 
 
+ScannerObjective = Literal["Capital Growth", "Break-Even Throughput"]
+
+
+class ScannerRequest(BaseModel):
+    symbols: list[str] = Field(default_factory=lambda: ["ETH/USDT:USDT", "BTC/USDT:USDT", "SOL/USDT:USDT"], min_length=1, max_length=12)
+    timeframes: list[Literal["1m", "5m", "15m", "30m"]] = Field(default_factory=lambda: ["1m", "5m"], min_length=1, max_length=4)
+    strategies: list[str] = Field(default_factory=lambda: ["Supertrend", "Stochastic Reversal", "EMA Crossover", "Bollinger Mean Reversion"], min_length=1, max_length=15)
+    objective: ScannerObjective = "Capital Growth"
+    history_bars: int = Field(2000, ge=300, le=10000)
+    target_buffers_pct: list[float] = Field(default_factory=lambda: [0.0, 0.005, 0.01, 0.02, 0.04, 0.08], min_length=1, max_length=12)
+    walk_forward_windows: int = Field(4, ge=2, le=8)
+    min_sample_trades: int = Field(20, ge=1, le=10000)
+    min_walk_forward_pass_rate_pct: float = Field(60.0, ge=0, le=100)
+    max_drawdown_pct: float = Field(5.0, gt=0, le=100)
+    min_net_expectancy_usdt: float = Field(0.0, ge=-1000000, le=1000000)
+    starting_balance: float = Field(100000.0, gt=0)
+    leverage: float = Field(1.0, ge=1, le=200)
+    allocation_pct: float = Field(5.0, gt=0, le=100)
+    pyramiding: int = Field(1, ge=1, le=20)
+    direction: Literal["Both", "Long Only", "Short Only"] = "Both"
+    entry_fee_pct: float = Field(0.05, ge=0, le=5)
+    exit_fee_pct: float = Field(0.05, ge=0, le=5)
+    extra_cost_pct: float = Field(0.0, ge=0, le=5)
+    referral_share_pct: float = Field(30.0, ge=0, le=100)
+    maintenance_margin_pct: float = Field(0.4, ge=0, le=20)
+    stop_loss_pct: float | None = Field(None, gt=0, le=99)
+    max_bars_in_trade: int | None = Field(None, ge=1, le=100000)
+    backtest_profile: BacktestProfile = "TradingView Parity"
+
+    @model_validator(mode="after")
+    def validate_scan(self):
+        self.symbols = list(dict.fromkeys(x for x in self.symbols if x))
+        self.timeframes = list(dict.fromkeys(self.timeframes))
+        self.strategies = list(dict.fromkeys(x for x in self.strategies if x))
+        self.target_buffers_pct = sorted(set(round(float(x), 6) for x in self.target_buffers_pct if x >= 0))
+        if not self.symbols or not self.timeframes or not self.strategies or not self.target_buffers_pct:
+            raise ValueError("scanner requires at least one symbol, timeframe, strategy, and target")
+        evaluations = len(self.symbols) * len(self.timeframes) * len(self.strategies) * len(self.target_buffers_pct)
+        if evaluations > 1200:
+            raise ValueError("scanner request is too large; reduce symbols/timeframes/strategies/targets below 1200 combinations")
+        return self
+
+
 class MarketResponse(BaseModel):
     symbol: str
     timeframe: str
