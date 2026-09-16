@@ -88,5 +88,23 @@
 .universe-compare-table th{color:#dfe9e4;font-size:8px;background:#06100b}
 .universe-compare-table th small{display:block;color:#62756b;font-size:6.5px;margin-top:2px;font-weight:400}
 .universe-compare-panel footer{padding:10px 15px;border-top:1px solid #18251f;color:#697b72;font-size:8px}
+
+/* Keep research context coherent: the Universe is not a single-market execution page. */
+.universe-active.universe-refined .universe-workspace{grid-template-rows:62px minmax(0,1fr) 240px}
+.universe-active .market-strip{display:flex;align-items:center;gap:10px;padding:0 13px;background:linear-gradient(90deg,#030705,#050b08);border-bottom:1px solid #17231c}
+.universe-active .market-strip>.market-identity,.universe-active .market-strip>.timeframes,.universe-active .market-strip>#executionContext,.universe-active .market-strip>.market-meta{display:none!important}
+.universe-active .market-strip::before{content:"UNIVERSE RESEARCH";display:inline-flex;align-items:center;height:30px;padding:0 10px;border:1px solid rgba(16,255,139,.22);border-radius:3px;background:rgba(16,255,139,.055);color:#c8ffe0;font-size:9px;font-weight:850;letter-spacing:.09em}
+.universe-active .market-strip::after{content:"Cross-scan evidence · multi-market scope · execution context disabled";color:#6c8075;font-size:8px;letter-spacing:.04em}
+.universe-active #openStrategyTab,.universe-active .rail-foot .rail-link[aria-disabled="true"]{display:none!important}
+.universe-active .statusbar .status-left,.universe-active .statusbar .status-right{display:none!important}
+.universe-active .statusbar::before{content:"●  Universe evidence workspace · scanner qualification remains authoritative";color:#6f8579;font-size:8px;letter-spacing:.025em}
+.universe-active .statusbar::after{content:"Research only · no execution mutation from this surface";margin-left:auto;color:#597067;font-size:8px}
+.universe-canvas-panel:has(.universe-coverage-callout:not(.hidden)) .universe-cy{opacity:.12;filter:blur(.8px)}
+.universe-canvas-panel:has(.universe-coverage-callout:not(.hidden)) .universe-legend,.universe-canvas-panel:has(.universe-coverage-callout:not(.hidden)) .universe-evidence-note{opacity:.34}
+.universe-coverage-callout:not(.hidden){left:50%;right:auto;top:50%;transform:translate(-50%,-50%);width:min(440px,58%);padding:18px 20px;text-align:center;border-color:#28523d;background:linear-gradient(145deg,rgba(7,25,16,.98),rgba(3,8,5,.98));box-shadow:0 24px 64px rgba(0,0,0,.58)}
+.universe-coverage-callout:not(.hidden) strong{font-size:14px;margin-bottom:7px}
+.universe-coverage-callout:not(.hidden) span{font-size:9px;line-height:1.6}
+.universe-coverage-callout:not(.hidden) a{margin-top:12px}
+
 @media(max-width:1180px){.universe-refined .universe-commandbar{grid-template-columns:minmax(220px,1fr) 130px 120px auto}.universe-refined .universe-commandbar #universeMetric{display:none}.universe-refined .universe-main{grid-template-columns:minmax(0,1fr) 270px}.universe-coverage-callout{width:300px}.universe-cluster-grid{grid-template-columns:repeat(2,minmax(150px,1fr))}.universe-summary-grid{grid-template-columns:repeat(3,minmax(120px,1fr))}}
-@media(max-width:860px){.universe-refined .universe-main{grid-template-columns:minmax(0,1fr)}.universe-refined .universe-inspector{display:none}.universe-coverage-callout{right:12px;width:280px}.universe-refined .universe-commandbar{grid-template-columns:minmax(180px,1fr) auto}.universe-refined .universe-commandbar #universeStrategy,.universe-refined .universe-commandbar #universeTimeframe,.universe-refined .universe-commandbar #universeMetric{display:none}.universe-summary-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}}
+@media(max-width:860px){.universe-refined .universe-main{grid-template-columns:minmax(0,1fr)}.universe-refined .universe-inspector{display:none}.universe-coverage-callout{right:12px;width:280px}.universe-refined .universe-commandbar{grid-template-columns:minmax(180px,1fr) auto}.universe-refined .universe-commandbar #universeStrategy,.universe-refined .universe-commandbar #universeTimeframe,.universe-refined .universe-commandbar #universeMetric{display:none}.universe-summary-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}.universe-active .market-strip::after{display:none}.universe-coverage-callout:not(.hidden){width:min(420px,78%)}}
