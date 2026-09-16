@@ -53,6 +53,10 @@
     const universeRefineStyle=document.createElement('link');
     universeRefineStyle.rel='stylesheet';universeRefineStyle.href='/static/v4-universe-refine.css';document.head.appendChild(universeRefineStyle);
   }
+  if(!document.querySelector('link[href="/static/v4-universe-safety.css"]')){
+    const universeSafetyStyle=document.createElement('link');
+    universeSafetyStyle.rel='stylesheet';universeSafetyStyle.href='/static/v4-universe-safety.css';document.head.appendChild(universeSafetyStyle);
+  }
   if(!document.querySelector('script[src="/static/v4-universe-refine.js"]')){
     const universeRefine=document.createElement('script');
     universeRefine.src='/static/v4-universe-refine.js';
