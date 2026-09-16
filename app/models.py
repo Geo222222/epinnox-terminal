@@ -20,6 +20,11 @@ ConfirmationPolicy = Literal[
     "Primary + All States",
 ]
 
+BacktestProfile = Literal[
+    "TradingView Parity",
+    "Simplified Isolated",
+]
+
 
 class BacktestRequest(BaseModel):
     symbol: str = "ETH/USDT:USDT"
@@ -29,7 +34,10 @@ class BacktestRequest(BaseModel):
     confirmation_policy: ConfirmationPolicy = "Single"
     confirmation_required: int = Field(2, ge=1, le=9)
     confirmation_window_bars: int = Field(1, ge=1, le=100)
-    limit: int = Field(1000, ge=100, le=5000)
+    limit: int = Field(1000, ge=100, le=50000)
+    start_ts_ms: int | None = None
+    end_ts_ms: int | None = None
+    backtest_profile: BacktestProfile = "TradingView Parity"
     starting_balance: float = Field(100000.0, gt=0)
     leverage: float = Field(1.0, ge=1, le=200)
     allocation_pct: float = Field(5.0, gt=0, le=100)
@@ -54,6 +62,8 @@ class BacktestRequest(BaseModel):
         selected = 1 + len(self.confirmations)
         if self.confirmation_policy == "Quorum Recent Events" and self.confirmation_required > selected:
             raise ValueError("confirmation_required cannot exceed the number of selected strategies")
+        if self.start_ts_ms is not None and self.end_ts_ms is not None and self.start_ts_ms >= self.end_ts_ms:
+            raise ValueError("start_ts_ms must be before end_ts_ms")
         return self
 
 

@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .backtest import run_backtest
-from .market import fetch_ohlcv, symbols
+from .market import fetch_ohlcv, fetch_ohlcv_range, symbols
 from .models import BacktestRequest
 from .paper_live import PaperLiveManager
 from .presets import PRESETS, STRATEGIES
@@ -15,7 +15,7 @@ from .presets import PRESETS, STRATEGIES
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 
-app = FastAPI(title="Epinnox Terminal", version="0.2.0")
+app = FastAPI(title="Epinnox Terminal", version="0.3.0")
 app.mount("/static", StaticFiles(directory=WEB), name="static")
 paper_live = PaperLiveManager()
 
@@ -37,6 +37,10 @@ def config():
             "Quorum Recent Events",
             "Primary + All States",
         ],
+        "backtest_profiles": [
+            "TradingView Parity",
+            "Simplified Isolated",
+        ],
         "default_symbol": "ETH/USDT:USDT",
         "execution": {
             "epinnox_online_base_url": os.getenv("EPINNOX_ONLINE_BASE_URL"),
@@ -54,7 +58,7 @@ def list_symbols():
 
 
 @app.get("/api/market")
-def market(symbol: str = Query("ETH/USDT:USDT"), timeframe: str = Query("1m"), limit: int = Query(1000, ge=100, le=5000)):
+def market(symbol: str = Query("ETH/USDT:USDT"), timeframe: str = Query("1m"), limit: int = Query(1000, ge=100, le=50000)):
     try:
         candles = fetch_ohlcv(symbol, timeframe, limit)
         return {"symbol": symbol, "timeframe": timeframe, "candles": candles, "source": "HTX via CCXT"}
@@ -65,7 +69,18 @@ def market(symbol: str = Query("ETH/USDT:USDT"), timeframe: str = Query("1m"), l
 @app.post("/api/backtest")
 def backtest(req: BacktestRequest):
     try:
-        candles = fetch_ohlcv(req.symbol, req.timeframe, req.limit)
+        if req.start_ts_ms is not None and req.end_ts_ms is not None:
+            candles = fetch_ohlcv_range(
+                req.symbol,
+                req.timeframe,
+                req.start_ts_ms,
+                req.end_ts_ms,
+                max_bars=50000,
+            )
+        else:
+            candles = fetch_ohlcv(req.symbol, req.timeframe, req.limit)
+        if not candles:
+            raise ValueError("No candles returned for the requested backtest window")
         return {"candles": candles, **run_backtest(candles, req)}
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
