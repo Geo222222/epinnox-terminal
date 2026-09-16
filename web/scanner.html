@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Opportunity Scanner · Epinnox Terminal</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/scanner.css" />
+</head>
+<body>
+  <div class="app-shell scanner-shell">
+    <header class="topbar scanner-topbar">
+      <a class="brand-block scanner-brand" href="/">
+        <div class="brand-mark">E</div>
+        <div><div class="brand-name">EPINNOX TERMINAL</div><div class="brand-subtitle">OTS-01 · Opportunity & Throughput Scanner</div></div>
+      </a>
+      <div class="topbar-center"><span class="connection-dot"></span><span>Deterministic research engine</span></div>
+      <div class="scanner-nav"><a class="chart-tool" href="/">← Chart</a><span class="mini-tag">RESEARCH ONLY</span></div>
+    </header>
+
+    <section class="scanner-hero">
+      <div>
+        <span class="eyebrow">OPPORTUNITY SCANNER</span>
+        <h1>Find qualified strategy-market-target combinations.</h1>
+        <p>Target sweeps begin at the fee-aware break-even floor, then walk-forward checks reject combinations that do not remain viable across sequential windows.</p>
+      </div>
+      <div class="objective-box">
+        <label><span>Objective</span><select id="scanObjective"><option>Capital Growth</option><option>Break-Even Throughput</option></select></label>
+        <p id="objectiveHelp" class="muted">Prioritize qualified net return, profit factor, stability and lower drawdown.</p>
+      </div>
+    </section>
+
+    <main class="scanner-layout">
+      <aside class="scanner-controls">
+        <section class="scan-section">
+          <div class="section-heading"><span class="eyebrow">UNIVERSE</span><span id="combinationCount" class="mini-tag">— evaluations</span></div>
+          <label class="stack-setting"><span>Symbols</span><select id="scanSymbols" multiple size="7"></select></label>
+          <label class="stack-setting"><span>Timeframes</span><select id="scanTimeframes" multiple size="4"></select></label>
+          <label class="stack-setting"><span>Strategies</span><select id="scanStrategies" multiple size="9"></select></label>
+          <label class="setting-row"><span>History</span><div class="input-suffix"><input id="scanBars" type="number" min="300" max="10000" step="100" value="2000"/><em>bars</em></div></label>
+        </section>
+
+        <section class="scan-section">
+          <div class="section-heading"><span class="eyebrow">TARGET SWEEP</span><span class="mini-tag">fee floor + buffer</span></div>
+          <label class="stack-setting"><span>Net-profit buffers (%)</span><input id="scanTargets" value="0, 0.005, 0.01, 0.02, 0.04, 0.08" /></label>
+          <div id="feeFloorPreview" class="fee-floor-card">Fee floor —</div>
+          <p class="muted compact-help">A 0% buffer means exit at the modeled fee-aware break-even price. Positive values add trader profit above that floor.</p>
+        </section>
+
+        <section class="scan-section">
+          <div class="section-heading"><span class="eyebrow">QUALIFICATION</span></div>
+          <label class="setting-row"><span>Walk-forward windows</span><input id="scanWindows" type="number" value="4" min="2" max="8" /></label>
+          <label class="setting-row"><span>Minimum trades</span><input id="scanMinTrades" type="number" value="20" min="1" /></label>
+          <label class="setting-row"><span>Minimum pass rate</span><div class="input-suffix"><input id="scanPassRate" type="number" value="60" min="0" max="100"/><em>%</em></div></label>
+          <label class="setting-row"><span>Maximum drawdown</span><div class="input-suffix"><input id="scanMaxDd" type="number" value="5" min="0.01" max="100" step="0.1"/><em>%</em></div></label>
+          <label class="setting-row"><span>Minimum expectancy</span><div class="input-prefix"><em>$</em><input id="scanMinExpectancy" type="number" value="0" step="0.001"/></div></label>
+        </section>
+
+        <section class="scan-section">
+          <div class="section-heading"><span class="eyebrow">ECONOMICS</span></div>
+          <label class="setting-row"><span>Balance</span><div class="input-prefix"><em>$</em><input id="scanBalance" type="number" value="100000" /></div></label>
+          <label class="setting-row"><span>Leverage</span><div class="input-suffix"><input id="scanLeverage" type="number" value="1" min="1" max="200"/><em>×</em></div></label>
+          <label class="setting-row"><span>Allocation</span><div class="input-suffix"><input id="scanAllocation" type="number" value="5" min="0.1" max="100" step="0.1"/><em>%</em></div></label>
+          <label class="setting-row"><span>Entry fee</span><div class="input-suffix"><input id="scanEntryFee" type="number" value="0.05" step="0.001"/><em>%</em></div></label>
+          <label class="setting-row"><span>Exit fee</span><div class="input-suffix"><input id="scanExitFee" type="number" value="0.05" step="0.001"/><em>%</em></div></label>
+          <label class="setting-row"><span>Extra cost</span><div class="input-suffix"><input id="scanExtraCost" type="number" value="0" step="0.001"/><em>%</em></div></label>
+          <label class="setting-row"><span>Referral share</span><div class="input-suffix"><input id="scanReferral" type="number" value="30" min="0" max="100"/><em>%</em></div></label>
+        </section>
+
+        <button id="runScan" class="scan-run">Run opportunity scan</button>
+        <div id="scanStatus" class="scan-status">Ready.</div>
+      </aside>
+
+      <section class="scanner-results">
+        <div id="scanSummary" class="scan-summary">
+          <div class="metric"><span>Evaluated</span><b>—</b></div><div class="metric"><span>Qualified</span><b>—</b></div><div class="metric"><span>Fee floor long</span><b>—</b></div><div class="metric"><span>Fee floor short</span><b>—</b></div>
+        </div>
+        <div id="bestCandidate" class="best-candidate"><span class="muted">Run a scan to surface qualified candidates.</span></div>
+        <div class="results-toolbar">
+          <div><span class="eyebrow">CANDIDATES</span><span id="rankingPolicy" class="muted ranking-policy"></span></div>
+          <label class="qualified-toggle"><input id="qualifiedOnly" type="checkbox" checked /> Qualified only</label>
+        </div>
+        <div class="scanner-table-wrap">
+          <table class="scanner-table">
+            <thead><tr><th>Rank</th><th>Status</th><th>Symbol</th><th>TF</th><th>Strategy</th><th>Buffer</th><th>Trades/day</th><th>Net P&L</th><th>Expectancy</th><th>PF</th><th>Win</th><th>Max DD</th><th>WF pass</th><th>Fees/day</th><th>Referral/day</th><th>Median hold</th><th>Load</th></tr></thead>
+            <tbody id="scannerRows"><tr><td colspan="17" class="empty-cell">No scan results yet.</td></tr></tbody>
+          </table>
+        </div>
+        <section class="scan-history">
+          <div class="section-heading"><span class="eyebrow">RECENT EXPERIMENTS</span><button id="refreshRuns" class="chart-tool">Refresh</button></div>
+          <div id="recentRuns" class="recent-runs"><span class="muted">No persisted scans loaded.</span></div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="/static/scanner.js"></script>
+</body>
+</html>
