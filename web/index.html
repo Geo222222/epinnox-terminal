@@ -81,11 +81,19 @@
           <div class="inspector-section paper-section">
             <div class="section-heading"><span class="eyebrow">PAPER LIVE</span><span class="status-pill neutral" id="paperBadge">OFF</span></div>
             <div id="paperState" class="paper-card">Not running.</div>
-            <div class="paper-actions"><button id="paperStart" class="paper-action" disabled>Start paper strategy</button><button id="paperStop" class="danger-action" disabled>Stop</button></div>
+            <div class="paper-actions"><button id="paperStart" class="paper-action" disabled>Start paper strategy</button><button id="paperRecover" class="paper-action hidden">Recover</button><button id="paperStop" class="danger-action" disabled>Stop</button></div>
           </div>
         </div>
 
         <div id="strategyPanel" class="inspector-panel">
+          <div class="inspector-section">
+            <div class="section-heading"><span class="eyebrow">WORKSPACE PRESETS</span><span class="mini-tag">durable</span></div>
+            <div class="settings-grid">
+              <div class="preset-row"><select id="namedPreset"><option value="">Saved preset…</option></select><button id="presetApply" class="chart-tool">Apply</button></div>
+              <div class="preset-row"><input id="presetName" type="text" maxlength="80" placeholder="ETH 1m Stoch" /><button id="presetSave" class="chart-tool emphasis">Save</button><button id="presetDelete" class="danger-action">Delete</button></div>
+              <p id="presetStatus" class="muted compact-help">Workspace fields also autosave locally in this browser.</p>
+            </div>
+          </div>
           <div class="inspector-section">
             <div class="section-heading"><span class="eyebrow">BACKTEST MODEL</span><span id="autoApplyBadge" class="status-pill long">AUTO APPLY</span></div>
             <div class="settings-grid">
@@ -150,6 +158,7 @@
 
     <footer class="statusbar"><div class="status-left"><span class="status-led"></span><span id="status">Ready.</span></div><div class="status-right"><span id="autoStatus">Backtest auto-apply enabled</span><span class="separator">•</span><span>HTX linear futures</span></div></footer>
   </div>
+  <script src="/static/persistence.js"></script>
   <script type="module" src="/static/app.js"></script>
 </body>
 </html>
