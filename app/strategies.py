@@ -5,6 +5,41 @@ from . import indicators as I
 from .presets import params_for
 
 
+def strategy_warmup_bars(strategy: str, timeframe: str, manual_params: dict | None = None) -> int:
+    """Conservative bars required before a strategy's indicator state is mature.
+
+    The value is used by research validation code; it does not suppress normal
+    chart/backtest signals. It intentionally errs slightly high for recursive
+    Wilder indicators so out-of-sample windows do not start from a cold state.
+    """
+    p = params_for(timeframe, strategy, manual_params)
+    if strategy in {"RSI Mean Reversion", "RSI Momentum"}:
+        return int(p["length"]) + 1
+    if strategy == "EMA Crossover":
+        return max(int(p["fast"]), int(p["slow"]))
+    if strategy == "SMA Crossover":
+        return max(int(p["fast"]), int(p["slow"]))
+    if strategy == "MACD":
+        return int(p["slow"]) + int(p["signal"])
+    if strategy.startswith("Bollinger"):
+        return int(p["length"])
+    if strategy in {"Donchian Breakout", "Price Channel Trend"}:
+        return int(p["length"]) + 1
+    if strategy == "Supertrend":
+        return int(p["atr"]) + 2
+    if strategy == "Stochastic Reversal":
+        return int(p["k"]) + int(p["d"])
+    if strategy == "ADX Trend":
+        return int(p["length"]) + int(p["smoothing"]) + 1
+    if strategy == "ATR Breakout":
+        return int(p["atr"]) + 2
+    if strategy == "VWAP Deviation":
+        return 2
+    if strategy == "Momentum ROC":
+        return int(p["length"]) + 1
+    return 50
+
+
 def build_strategy(df: pd.DataFrame, strategy: str, timeframe: str, manual_params: dict | None = None) -> dict:
     """Build one Pine-parity signal generator.
 
@@ -68,9 +103,10 @@ def build_strategy(df: pd.DataFrame, strategy: str, timeframe: str, manual_param
         overlays = {"Donchian Upper": upper, "Donchian Lower": lower}
     elif strategy == "Supertrend":
         st, direction = I.supertrend(df, int(p["atr"]), float(p["factor"]))
-        long = (direction > 0) & (direction.shift(1) < 0)
-        short = (direction < 0) & (direction.shift(1) > 0)
-        state_long, state_short = direction > 0, direction < 0
+        # TradingView ta.supertrend: -1 = bullish/uptrend, +1 = bearish/downtrend.
+        long = (direction < 0) & (direction.shift(1) > 0)
+        short = (direction > 0) & (direction.shift(1) < 0)
+        state_long, state_short = direction < 0, direction > 0
         overlays = {"Supertrend": st}
     elif strategy == "Stochastic Reversal":
         k, d = I.stochastic(df, int(p["k"]), int(p["d"]))
