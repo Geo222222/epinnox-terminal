@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 import pandas as pd
 
+from .economics import fee_aware_exit_levels
 from .market import fetch_ohlcv
 from .models import BacktestRequest
 from .storage import RuntimeStore, runtime_store
@@ -18,6 +19,7 @@ from .strategies import build_entry_model, entry_receipt
 @dataclass
 class PaperRuntimeState:
     session_id: str | None = None
+    name: str | None = None
     account_id: str | None = None
     status: str = "STOPPED"
     running: bool = False
@@ -34,7 +36,7 @@ class PaperRuntimeState:
 
 
 class PaperLiveManager:
-    """Durable paper runner bound to one authenticated epinnox-online account."""
+    """One durable paper strategy runner bound to one Epinnox Online account."""
 
     def __init__(self, store: RuntimeStore = runtime_store) -> None:
         self.store = store
@@ -46,6 +48,10 @@ class PaperLiveManager:
         self._cookie: str = ""
         self._shutdown_for_restart = False
 
+    @property
+    def request(self) -> BacktestRequest | None:
+        return self._req
+
     def snapshot(self) -> dict[str, Any]:
         req = self._req
         events = self.state.events[-50:]
@@ -56,7 +62,12 @@ class PaperLiveManager:
                 pass
         return {
             "session_id": self.state.session_id,
+            "name": self.state.name,
+            "environment": "PAPER",
             "account_id": self.state.account_id,
+            "symbol": None if req is None else req.symbol,
+            "timeframe": None if req is None else req.timeframe,
+            "strategy": None if req is None else req.strategy,
             "status": self.state.status,
             "running": self.state.running,
             "started_at_ms": self.state.started_at_ms,
@@ -85,6 +96,7 @@ class PaperLiveManager:
             self.state.status = status
         request = self._req.model_dump(mode="json")
         request["_terminal_account_id"] = self.state.account_id
+        request["_terminal_session_name"] = self.state.name
         self.store.save_session(
             self.state.session_id,
             status=self.state.status,
@@ -153,17 +165,15 @@ class PaperLiveManager:
 
     @staticmethod
     def _target(avg: float, side: str, req: BacktestRequest) -> tuple[float, float]:
-        entry_r, exit_r = req.entry_fee_pct / 100.0, req.exit_fee_pct / 100.0
-        extra_r, profit_r = req.extra_cost_pct / 100.0, req.desired_net_profit_pct / 100.0
-        if side == "long":
-            return (
-                avg * (1 + entry_r + extra_r) / max(1e-12, 1 - exit_r),
-                avg * (1 + entry_r + extra_r + profit_r) / max(1e-12, 1 - exit_r),
-            )
-        return (
-            avg * (1 - entry_r - extra_r) / (1 + exit_r),
-            avg * (1 - entry_r - extra_r - profit_r) / (1 + exit_r),
+        levels = fee_aware_exit_levels(
+            avg,
+            side,
+            entry_fee_pct=req.entry_fee_pct,
+            exit_fee_pct=req.exit_fee_pct,
+            extra_cost_pct=req.extra_cost_pct,
+            desired_net_profit_pct=req.desired_net_profit_pct,
         )
+        return levels.break_even, levels.target
 
     async def _arm_exits(self, pos: dict, req: BacktestRequest) -> None:
         side, avg = str(pos.get("side") or ""), float(pos.get("entry_price") or 0.0)
@@ -217,35 +227,66 @@ class PaperLiveManager:
         self.state.position, self.state.layers, self.state.bars_in_position, self.state.pending_intent = None, 0, 0, None
         self._checkpoint()
 
-    async def start(self, req: BacktestRequest, base_url: str | None, cookie: str, *, account_id: str | None = None) -> dict[str, Any]:
+    async def start(
+        self,
+        req: BacktestRequest,
+        base_url: str | None,
+        cookie: str,
+        *,
+        account_id: str | None = None,
+        session_id: str | None = None,
+        session_name: str | None = None,
+    ) -> dict[str, Any]:
         if self._task and not self._task.done():
-            raise RuntimeError("A paper live session is already running")
+            raise RuntimeError("This paper session is already running")
         if not base_url:
             raise RuntimeError("Set EPINNOX_ONLINE_BASE_URL before starting PAPER")
         if not account_id:
             raise RuntimeError("Select a paper account before starting PAPER")
         self._req, self._base_url, self._cookie = req, base_url, cookie
         self._stop, self._shutdown_for_restart = asyncio.Event(), False
-        self.state = PaperRuntimeState(session_id=str(uuid.uuid4()), account_id=account_id, status="RUNNING", running=True, started_at_ms=int(time.time() * 1000))
+        self.state = PaperRuntimeState(
+            session_id=session_id or str(uuid.uuid4()),
+            name=(session_name or "").strip() or None,
+            account_id=account_id,
+            status="RUNNING",
+            running=True,
+            started_at_ms=int(time.time() * 1000),
+        )
         await self._assert_paper()
         self._checkpoint()
         self._event("started", f"{req.symbol} {req.timeframe} {req.confirmation_policy}", account_id=account_id)
-        self._task = asyncio.create_task(self._loop())
+        self._task = asyncio.create_task(self._loop(), name=f"paper-{self.state.session_id}")
         return self.snapshot()
 
-    async def recover(self, base_url: str | None, cookie: str = "") -> dict[str, Any]:
-        active = self.store.load_active_session()
-        if not active or (self._task and not self._task.done()):
+    async def recover_record(self, active: dict[str, Any], base_url: str | None, cookie: str = "") -> dict[str, Any]:
+        if self._task and not self._task.done():
             return self.snapshot()
         raw_request = dict(active["request"] or {})
         account_id = str(raw_request.pop("_terminal_account_id", "") or "").strip() or None
+        session_name = str(raw_request.pop("_terminal_session_name", "") or "").strip() or None
         self._req = BacktestRequest.model_validate(raw_request)
         self._base_url, self._cookie = base_url, cookie
         self._stop, self._shutdown_for_restart = asyncio.Event(), False
-        self.state = PaperRuntimeState(session_id=active["session_id"], account_id=account_id, status="RECONCILING", started_at_ms=active["started_at_ms"], last_bar_ts_ms=active["last_bar_ts_ms"], last_error=active["last_error"], last_signal=active["last_signal"], position=active["position"], layers=int(active["layers"] or 0), bars_in_position=int(active["bars_in_position"] or 0), pending_intent=active["pending_intent"], recovered_count=int(active["recovered_count"] or 0))
+        self.state = PaperRuntimeState(
+            session_id=active["session_id"],
+            name=session_name,
+            account_id=account_id,
+            status="RECONCILING",
+            started_at_ms=active["started_at_ms"],
+            last_bar_ts_ms=active["last_bar_ts_ms"],
+            last_error=active["last_error"],
+            last_signal=active["last_signal"],
+            position=active["position"],
+            layers=int(active["layers"] or 0),
+            bars_in_position=int(active["bars_in_position"] or 0),
+            pending_intent=active["pending_intent"],
+            recovered_count=int(active["recovered_count"] or 0),
+        )
         self._checkpoint("RECONCILING")
-        if not base_url or not account_id:
-            self.state.last_error = "Persisted paper session cannot prove its bound Epinnox account; recovery is fail-closed"
+        if not base_url or not account_id or not cookie:
+            self.state.running = False
+            self.state.last_error = "Session recovery requires the authenticated Epinnox Online browser session; recovery is fail-closed"
             self._checkpoint("RECOVERY_REQUIRED")
             return self.snapshot()
         try:
@@ -266,12 +307,18 @@ class PaperLiveManager:
             self.state.last_error, self.state.running = None, True
             self._checkpoint("RECOVERED")
             self._event("recovered_after_restart", f"session recovered; upstream position={'present' if pos else 'flat'}")
-            self._task = asyncio.create_task(self._loop())
+            self._task = asyncio.create_task(self._loop(), name=f"paper-{self.state.session_id}")
         except Exception as exc:
             self.state.running, self.state.last_error = False, str(exc)
             self._checkpoint("RECOVERY_REQUIRED")
             self._event("recovery_required", str(exc))
         return self.snapshot()
+
+    async def recover(self, base_url: str | None, cookie: str = "") -> dict[str, Any]:
+        active = self.store.load_active_session()
+        if not active:
+            return self.snapshot()
+        return await self.recover_record(active, base_url, cookie)
 
     async def stop(self) -> dict[str, Any]:
         self._stop.set()
@@ -290,7 +337,8 @@ class PaperLiveManager:
         if not self._task or self._task.done():
             return
         self._shutdown_for_restart, self.state.running = True, False
-        self._stop.set(); self._task.cancel()
+        self._stop.set()
+        self._task.cancel()
         try:
             await self._task
         except asyncio.CancelledError:
@@ -311,7 +359,8 @@ class PaperLiveManager:
                     df, i = pd.DataFrame(candles), len(candles) - 2
                     bar_ts = int(df.ts_ms.iloc[i])
                     if self.state.last_bar_ts_ms == bar_ts:
-                        await asyncio.sleep(2.0); continue
+                        await asyncio.sleep(2.0)
+                        continue
                     self.state.last_bar_ts_ms, self.state.last_error = bar_ts, None
                     logic = build_entry_model(df, req.strategy, req.timeframe, req.manual_params, req.confirmations, req.confirmation_policy, req.confirmation_required, req.confirmation_window_bars)
                     await self._assert_paper()
@@ -321,12 +370,15 @@ class PaperLiveManager:
                     else:
                         self.state.position, self.state.bars_in_position = pos, self.state.bars_in_position + 1
                         if req.max_bars_in_trade and self.state.bars_in_position >= req.max_bars_in_trade:
-                            await self._close_for_timeout(pos, req); await asyncio.sleep(1.0); continue
+                            await self._close_for_timeout(pos, req)
+                            await asyncio.sleep(1.0)
+                            continue
                     self._checkpoint()
                     sig_side = "long" if req.direction in {"Both", "Long Only"} and bool(logic["long"].iloc[i]) else "short" if req.direction in {"Both", "Short Only"} and bool(logic["short"].iloc[i]) else None
                     if sig_side:
                         receipt = entry_receipt(logic, i, sig_side)
-                        self.state.last_signal = {"ts_ms": bar_ts, "side": sig_side, "receipt": receipt}; self._checkpoint()
+                        self.state.last_signal = {"ts_ms": bar_ts, "side": sig_side, "receipt": receipt}
+                        self._checkpoint()
                         same_side = pos is not None and str(pos.get("side")) == sig_side
                         if pos is None or (same_side and self.state.layers < req.pyramiding):
                             await self._submit_entry(sig_side, float(df.close.iloc[i]), receipt, req, bar_ts)
@@ -335,7 +387,8 @@ class PaperLiveManager:
                 except asyncio.CancelledError:
                     raise
                 except Exception as exc:
-                    self.state.last_error = str(exc); self._event("error", str(exc))
+                    self.state.last_error = str(exc)
+                    self._event("error", str(exc))
                 await asyncio.sleep(2.0)
         finally:
             self.state.running = False

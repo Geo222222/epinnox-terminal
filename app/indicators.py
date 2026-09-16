@@ -79,30 +79,44 @@ def session_vwap(df: pd.DataFrame) -> pd.Series:
 
 
 def supertrend(df: pd.DataFrame, n: int, factor: float):
+    """Supertrend with a tight NumPy state loop.
+
+    The algorithm is inherently recursive, so replacing pandas ``iloc`` access
+    with numeric arrays preserves the exact state machine while avoiding the
+    dominant Python/pandas indexing overhead. A JIT layer can be added later
+    only after parity benchmarks justify the dependency.
+    """
     a = atr(df, n)
-    hl2 = (df.high + df.low) / 2.0
-    basic_u = hl2 + factor * a
-    basic_l = hl2 - factor * a
+    a_values = a.to_numpy(dtype=np.float64, copy=False)
+    high = df.high.to_numpy(dtype=np.float64, copy=False)
+    low = df.low.to_numpy(dtype=np.float64, copy=False)
+    close = df.close.to_numpy(dtype=np.float64, copy=False)
+    hl2 = (high + low) / 2.0
+    basic_u = hl2 + factor * a_values
+    basic_l = hl2 - factor * a_values
     final_u = basic_u.copy()
     final_l = basic_l.copy()
-    direction = pd.Series(index=df.index, dtype=float)
-    st = pd.Series(index=df.index, dtype=float)
-    for i in range(len(df)):
-        if i == 0 or pd.isna(a.iloc[i]):
-            direction.iloc[i] = 1
-            st.iloc[i] = np.nan
+    direction = np.ones(len(df), dtype=np.float64)
+    st = np.full(len(df), np.nan, dtype=np.float64)
+
+    for i in range(1, len(df)):
+        if np.isnan(a_values[i]):
+            direction[i] = 1.0
             continue
-        final_u.iloc[i] = basic_u.iloc[i] if basic_u.iloc[i] < final_u.iloc[i-1] or df.close.iloc[i-1] > final_u.iloc[i-1] else final_u.iloc[i-1]
-        final_l.iloc[i] = basic_l.iloc[i] if basic_l.iloc[i] > final_l.iloc[i-1] or df.close.iloc[i-1] < final_l.iloc[i-1] else final_l.iloc[i-1]
-        prev_dir = direction.iloc[i-1]
-        if prev_dir < 0 and df.close.iloc[i] > final_u.iloc[i]:
-            direction.iloc[i] = 1
-        elif prev_dir > 0 and df.close.iloc[i] < final_l.iloc[i]:
-            direction.iloc[i] = -1
+        prev_u = final_u[i - 1]
+        prev_l = final_l[i - 1]
+        final_u[i] = basic_u[i] if basic_u[i] < prev_u or close[i - 1] > prev_u else prev_u
+        final_l[i] = basic_l[i] if basic_l[i] > prev_l or close[i - 1] < prev_l else prev_l
+        prev_dir = direction[i - 1]
+        if prev_dir < 0 and close[i] > final_u[i]:
+            direction[i] = 1.0
+        elif prev_dir > 0 and close[i] < final_l[i]:
+            direction[i] = -1.0
         else:
-            direction.iloc[i] = prev_dir
-        st.iloc[i] = final_l.iloc[i] if direction.iloc[i] > 0 else final_u.iloc[i]
-    return st, direction
+            direction[i] = prev_dir
+        st[i] = final_l[i] if direction[i] > 0 else final_u[i]
+
+    return pd.Series(st, index=df.index), pd.Series(direction, index=df.index)
 
 
 def crossover(a: pd.Series, b: pd.Series | float) -> pd.Series:

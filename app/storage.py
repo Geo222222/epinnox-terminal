@@ -10,6 +10,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 DB_PATH = DATA_DIR / "epinnox_terminal.db"
+ACTIVE_SESSION_STATUSES = ("RUNNING", "RECONCILING", "RECOVERED", "RECOVERY_REQUIRED")
 
 
 class RuntimeStore:
@@ -116,42 +117,56 @@ class RuntimeStore:
                 ),
             )
 
-    def supersede_active_sessions(self, keep_session_id: str | None = None) -> int:
+    def mark_session_status(self, session_id: str, status: str, last_error: str | None = None) -> bool:
         now = int(time.time() * 1000)
+        with self._lock, self._connect() as conn:
+            cur = conn.execute(
+                "UPDATE paper_sessions SET status=?, last_error=?, updated_at_ms=? WHERE session_id=?",
+                (status, last_error, now, session_id),
+            )
+            return cur.rowcount > 0
+
+    def supersede_active_sessions(self, keep_session_id: str | None = None) -> int:
+        """Compatibility helper retained for older clients.
+
+        New session-registry code no longer calls this because concurrent sessions
+        are first-class. It remains useful for explicit administrative cleanup.
+        """
+        now = int(time.time() * 1000)
+        placeholders = ",".join("?" for _ in ACTIVE_SESSION_STATUSES)
         with self._lock, self._connect() as conn:
             if keep_session_id:
                 cur = conn.execute(
-                    """
-                    UPDATE paper_sessions
-                    SET status='SUPERSEDED', updated_at_ms=?
-                    WHERE status IN ('RUNNING','RECONCILING','RECOVERED','RECOVERY_REQUIRED')
-                      AND session_id<>?
-                    """,
-                    (now, keep_session_id),
+                    f"UPDATE paper_sessions SET status='SUPERSEDED', updated_at_ms=? WHERE status IN ({placeholders}) AND session_id<>?",
+                    (now, *ACTIVE_SESSION_STATUSES, keep_session_id),
                 )
             else:
                 cur = conn.execute(
-                    """
-                    UPDATE paper_sessions
-                    SET status='SUPERSEDED', updated_at_ms=?
-                    WHERE status IN ('RUNNING','RECONCILING','RECOVERED','RECOVERY_REQUIRED')
-                    """,
-                    (now,),
+                    f"UPDATE paper_sessions SET status='SUPERSEDED', updated_at_ms=? WHERE status IN ({placeholders})",
+                    (now, *ACTIVE_SESSION_STATUSES),
                 )
             return cur.rowcount
 
-    def load_active_session(self) -> dict[str, Any] | None:
+    def load_active_sessions(self) -> list[dict[str, Any]]:
+        placeholders = ",".join("?" for _ in ACTIVE_SESSION_STATUSES)
         with self._lock, self._connect() as conn:
-            row = conn.execute(
-                """
-                SELECT * FROM paper_sessions
-                WHERE status IN ('RUNNING','RECONCILING','RECOVERED','RECOVERY_REQUIRED')
-                ORDER BY updated_at_ms DESC LIMIT 1
-                """
-            ).fetchone()
-        if row is None:
-            return None
-        return self._row_to_session(row)
+            rows = conn.execute(
+                f"SELECT * FROM paper_sessions WHERE status IN ({placeholders}) ORDER BY updated_at_ms DESC",
+                ACTIVE_SESSION_STATUSES,
+            ).fetchall()
+        return [self._row_to_session(row) for row in rows]
+
+    def load_active_session(self) -> dict[str, Any] | None:
+        rows = self.load_active_sessions()
+        return rows[0] if rows else None
+
+    def list_sessions(self, limit: int = 100) -> list[dict[str, Any]]:
+        with self._lock, self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM paper_sessions ORDER BY updated_at_ms DESC LIMIT ?",
+                (max(1, min(limit, 1000)),),
+            ).fetchall()
+        return [self._row_to_session(row) for row in rows]
 
     def get_session(self, session_id: str) -> dict[str, Any] | None:
         with self._lock, self._connect() as conn:

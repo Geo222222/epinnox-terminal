@@ -73,6 +73,7 @@ class BacktestRequest(BaseModel):
 
 class PaperLiveStartRequest(BaseModel):
     account_id: str = Field(..., min_length=1, max_length=200)
+    name: str | None = Field(None, max_length=80)
     strategy: BacktestRequest
 
 

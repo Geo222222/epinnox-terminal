@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from statistics import median
+
+import numpy as np
 import pandas as pd
 
+from .economics import fee_aware_exit_levels
+from .market import timeframe_ms
 from .models import BacktestRequest
 from .strategies import build_entry_model, entry_receipt
 
@@ -59,6 +63,16 @@ class Backtester:
             req.confirmation_required,
             req.confirmation_window_bars,
         )
+        # The sequential simulator must preserve bar order, but it does not need
+        # pandas Series/row objects in the hot loop. Keep contiguous numeric
+        # arrays beside the DataFrame used by indicator/receipt rendering.
+        self.ts = self.df["ts_ms"].to_numpy(dtype=np.int64, copy=False)
+        self.high = self.df["high"].to_numpy(dtype=np.float64, copy=False)
+        self.low = self.df["low"].to_numpy(dtype=np.float64, copy=False)
+        self.close = self.df["close"].to_numpy(dtype=np.float64, copy=False)
+        self.long_signal = self.logic["long"].to_numpy(dtype=bool, copy=False)
+        self.short_signal = self.logic["short"].to_numpy(dtype=bool, copy=False)
+
         self.cash = req.starting_balance
         self.equity_peak = req.starting_balance
         self.max_drawdown = 0.0
@@ -76,24 +90,16 @@ class Backtester:
     def liquidation_enabled(self) -> bool:
         return self.req.backtest_profile == "Simplified Isolated"
 
-    def _rates(self) -> tuple[float, float, float, float]:
-        return (
-            self.req.entry_fee_pct / 100.0,
-            self.req.exit_fee_pct / 100.0,
-            self.req.extra_cost_pct / 100.0,
-            self.req.desired_net_profit_pct / 100.0,
-        )
-
     def _target(self, p: Position) -> tuple[float, float]:
-        entry_r, exit_r, extra_r, profit_r = self._rates()
-        avg = p.avg
-        if p.side == "long":
-            be = avg * (1 + entry_r + extra_r) / max(1e-12, 1 - exit_r)
-            target = avg * (1 + entry_r + extra_r + profit_r) / max(1e-12, 1 - exit_r)
-        else:
-            be = avg * (1 - entry_r - extra_r) / (1 + exit_r)
-            target = avg * (1 - entry_r - extra_r - profit_r) / (1 + exit_r)
-        return be, target
+        levels = fee_aware_exit_levels(
+            p.avg,
+            p.side,
+            entry_fee_pct=self.req.entry_fee_pct,
+            exit_fee_pct=self.req.exit_fee_pct,
+            extra_cost_pct=self.req.extra_cost_pct,
+            desired_net_profit_pct=self.req.desired_net_profit_pct,
+        )
+        return levels.break_even, levels.target
 
     def _liq(self, p: Position) -> float | None:
         if not self.liquidation_enabled:
@@ -103,8 +109,8 @@ class Backtester:
             return max(0.0, p.avg * (1 - 1 / self.req.leverage + mm))
         return p.avg * (1 + 1 / self.req.leverage - mm)
 
-    def _liquidation_receipt(self, p: Position, row, liq: float) -> dict:
-        adverse_extreme = float(row.low) if p.side == "long" else float(row.high)
+    def _liquidation_receipt(self, p: Position, high: float, low: float, liq: float) -> dict:
+        adverse_extreme = low if p.side == "long" else high
         distance_pct = abs(liq - p.avg) / p.avg * 100.0 if p.avg else 0.0
         return {
             "model": "Simplified isolated estimate",
@@ -112,8 +118,8 @@ class Backtester:
             "leverage": self.req.leverage,
             "maintenance_margin_pct": self.req.maintenance_margin_pct,
             "estimated_liquidation_price": liq,
-            "candle_low": float(row.low),
-            "candle_high": float(row.high),
+            "candle_low": low,
+            "candle_high": high,
             "adverse_extreme": adverse_extreme,
             "distance_from_entry_pct": distance_pct,
             "note": "Research approximation only; not an authoritative HTX liquidation price.",
@@ -144,11 +150,11 @@ class Backtester:
         if not self.position:
             self.position = Position(side=side, entry_bar=i)
         receipt = entry_receipt(self.logic, i, side)
-        self.position.layers.append(Layer(int(self.df.ts_ms.iloc[i]), price, qty, fee, receipt))
+        self.position.layers.append(Layer(int(self.ts[i]), price, qty, fee, receipt))
         matched = sum(1 for x in receipt if x["matched"])
         self.markers.append(
             {
-                "ts_ms": int(self.df.ts_ms.iloc[i]),
+                "ts_ms": int(self.ts[i]),
                 "price": price,
                 "kind": "entry",
                 "side": side,
@@ -182,7 +188,7 @@ class Backtester:
                 "trade": len(self.closed) + 1,
                 "side": p.side,
                 "entry_ts_ms": p.layers[0].ts_ms,
-                "exit_ts_ms": int(self.df.ts_ms.iloc[i]),
+                "exit_ts_ms": int(self.ts[i]),
                 "entry_price": p.avg,
                 "exit_price": price,
                 "qty": p.qty,
@@ -207,7 +213,7 @@ class Backtester:
         )
         self.markers.append(
             {
-                "ts_ms": int(self.df.ts_ms.iloc[i]),
+                "ts_ms": int(self.ts[i]),
                 "price": price,
                 "kind": "exit",
                 "side": p.side,
@@ -217,36 +223,40 @@ class Backtester:
         self.position = None
 
     def run(self) -> dict:
-        tf_ms = {"1m": 60_000, "5m": 300_000, "15m": 900_000, "30m": 1_800_000}[self.req.timeframe]
+        tf_ms = timeframe_ms(self.req.timeframe)
         funding_bps = 0.0 if self.parity_mode else self.req.funding_bps_per_8h
         funding_rate_per_ms = (funding_bps / 10_000.0) / (8 * 60 * 60 * 1000)
+        allow_long = self.req.direction in {"Both", "Long Only"}
+        allow_short = self.req.direction in {"Both", "Short Only"}
 
-        for i, row in self.df.iterrows():
-            close = float(row.close)
+        for i in range(len(self.ts)):
+            close = float(self.close[i])
+            high = float(self.high[i])
+            low = float(self.low[i])
 
             if self.position:
                 p = self.position
                 p.funding += p.basis * funding_rate_per_ms * tf_ms
-                adverse = ((p.avg - row.low) / p.avg * 100) if p.side == "long" else ((row.high - p.avg) / p.avg * 100)
-                favorable = ((row.high - p.avg) / p.avg * 100) if p.side == "long" else ((p.avg - row.low) / p.avg * 100)
-                p.mae_pct = max(p.mae_pct, float(adverse))
-                p.mfe_pct = max(p.mfe_pct, float(favorable))
+                adverse = ((p.avg - low) / p.avg * 100) if p.side == "long" else ((high - p.avg) / p.avg * 100)
+                favorable = ((high - p.avg) / p.avg * 100) if p.side == "long" else ((p.avg - low) / p.avg * 100)
+                p.mae_pct = max(p.mae_pct, adverse)
+                p.mfe_pct = max(p.mfe_pct, favorable)
                 _, target = self._target(p)
                 liq = self._liq(p)
-                liquidated = bool(liq is not None and ((p.side == "long" and row.low <= liq) or (p.side == "short" and row.high >= liq)))
+                liquidated = bool(liq is not None and ((p.side == "long" and low <= liq) or (p.side == "short" and high >= liq)))
 
                 stop_hit = False
                 stop_price = None
                 if self.req.stop_loss_pct:
                     x = self.req.stop_loss_pct / 100.0
                     stop_price = p.avg * (1 - x) if p.side == "long" else p.avg * (1 + x)
-                    stop_hit = (p.side == "long" and row.low <= stop_price) or (p.side == "short" and row.high >= stop_price)
+                    stop_hit = (p.side == "long" and low <= stop_price) or (p.side == "short" and high >= stop_price)
 
-                target_hit = (p.side == "long" and row.high >= target) or (p.side == "short" and row.low <= target)
+                target_hit = (p.side == "long" and high >= target) or (p.side == "short" and low <= target)
                 timed_out = self.req.max_bars_in_trade is not None and i - p.entry_bar >= self.req.max_bars_in_trade
 
                 if liquidated and liq is not None:
-                    self._close(i, liq, "liquidation", self._liquidation_receipt(p, row, liq))
+                    self._close(i, liq, "liquidation", self._liquidation_receipt(p, high, low, liq))
                 elif stop_hit and stop_price is not None:
                     self._close(i, stop_price, "stop")
                 elif target_hit:
@@ -254,29 +264,27 @@ class Backtester:
                 elif timed_out:
                     self._close(i, close, "timeout")
 
-            allow_long = self.req.direction in {"Both", "Long Only"}
-            allow_short = self.req.direction in {"Both", "Short Only"}
             if self.position is None:
-                if allow_long and bool(self.logic["long"].iloc[i]):
+                if allow_long and self.long_signal[i]:
                     self._open_or_add(i, "long", close)
-                elif allow_short and bool(self.logic["short"].iloc[i]):
+                elif allow_short and self.short_signal[i]:
                     self._open_or_add(i, "short", close)
             else:
-                if self.position.side == "long" and allow_long and bool(self.logic["long"].iloc[i]):
+                if self.position.side == "long" and allow_long and self.long_signal[i]:
                     self._open_or_add(i, "long", close)
-                elif self.position.side == "short" and allow_short and bool(self.logic["short"].iloc[i]):
+                elif self.position.side == "short" and allow_short and self.short_signal[i]:
                     self._open_or_add(i, "short", close)
 
             equity = self._mark_equity(close)
             self.equity_peak = max(self.equity_peak, equity)
             drawdown = 0.0 if self.equity_peak <= 0 else (self.equity_peak - equity) / self.equity_peak * 100.0
             self.max_drawdown = max(self.max_drawdown, drawdown)
-            self.equity_curve.append({"ts_ms": int(row.ts_ms), "equity": equity})
+            self.equity_curve.append({"ts_ms": int(self.ts[i]), "equity": equity})
 
         if self.position:
             p = self.position
             be, target = self._target(p)
-            last = float(self.df.close.iloc[-1])
+            last = float(self.close[-1])
             self.open_snapshot = {
                 "side": p.side,
                 "avg_entry": p.avg,
@@ -289,7 +297,7 @@ class Backtester:
                 "open_pnl": self._mark_equity(last) - self.cash,
                 "mae_pct": p.mae_pct,
                 "mfe_pct": p.mfe_pct,
-                "bars_held": len(self.df) - 1 - p.entry_bar,
+                "bars_held": len(self.ts) - 1 - p.entry_bar,
                 "used_margin": self._used_margin(),
                 "free_collateral": max(0.0, self.cash - self._used_margin()),
                 "entry_confirmation": p.layers[0].receipt if p.layers else [],
@@ -306,7 +314,7 @@ class Backtester:
         referral = sum(t["referral_commission"] for t in self.closed)
         target_hits = sum(t["exit_reason"] == "target" for t in self.closed)
         liquidation_exits = sum(t["exit_reason"] == "liquidation" for t in self.closed)
-        days = max(1.0, (self.df.ts_ms.iloc[-1] - self.df.ts_ms.iloc[0]) / 86_400_000) if len(self.df) > 1 else 1.0
+        days = max(1.0, (self.ts[-1] - self.ts[0]) / 86_400_000) if len(self.ts) > 1 else 1.0
         net_closed = sum(t["net_pnl"] for t in self.closed)
         last_eq = self.equity_curve[-1]["equity"] if self.equity_curve else self.req.starting_balance
         profit_factor = gross_win / gross_loss if gross_loss > 0 else None
@@ -329,11 +337,10 @@ class Backtester:
         }
 
         def serial(series: pd.Series) -> list[dict]:
-            out = []
-            for idx, value in series.items():
-                if pd.notna(value):
-                    out.append({"ts_ms": int(self.df.ts_ms.iloc[idx]), "value": float(value)})
-            return out
+            values = series.to_numpy(copy=False)
+            mask = pd.notna(values)
+            indexes = np.flatnonzero(mask)
+            return [{"ts_ms": int(self.ts[i]), "value": float(values[i])} for i in indexes]
 
         model_label = self.req.strategy if self.req.confirmation_policy == "Single" else f"{self.req.strategy} + {' + '.join(self.req.confirmations)}"
         return {
@@ -342,9 +349,9 @@ class Backtester:
             "strategy": self.req.strategy,
             "backtest_profile": self.req.backtest_profile,
             "backtest_window": {
-                "start_ts_ms": int(self.df.ts_ms.iloc[0]),
-                "end_ts_ms": int(self.df.ts_ms.iloc[-1]),
-                "candles": len(self.df),
+                "start_ts_ms": int(self.ts[0]),
+                "end_ts_ms": int(self.ts[-1]),
+                "candles": len(self.ts),
             },
             "simulation": {
                 "liquidation_enabled": self.liquidation_enabled,
