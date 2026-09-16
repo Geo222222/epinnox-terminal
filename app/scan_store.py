@@ -4,18 +4,21 @@ import json
 import sqlite3
 import threading
 import time
+from pathlib import Path
 from typing import Any
 
 from .storage import DB_PATH
 
 
 class ScanStore:
-    def __init__(self) -> None:
+    def __init__(self, path: Path = DB_PATH) -> None:
+        self.path = path
         self._lock = threading.RLock()
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         self._init_schema()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(DB_PATH, timeout=30.0)
+        conn = sqlite3.connect(self.path, timeout=30.0)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         return conn
