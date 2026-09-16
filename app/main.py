@@ -75,7 +75,7 @@ def backtest(req: BacktestRequest):
                 req.timeframe,
                 req.start_ts_ms,
                 req.end_ts_ms,
-                max_bars=req.limit,
+                max_bars=50000,
             )
         else:
             candles = fetch_ohlcv(req.symbol, req.timeframe, req.limit)
