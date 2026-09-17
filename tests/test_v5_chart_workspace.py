@@ -85,3 +85,23 @@ def test_icon_ownership_is_separated_between_shell_and_chart():
     for name in ["Terminal", "Scanner", "Universe", "Sessions", "Research", "Strategies"]:
         assert name in shell_js
     assert "ep-nav-item" in shell_js
+
+
+def test_v5_exposes_chart_api_for_late_drawing_toolbar():
+    js = read("web/v5-chart-workspace.js")
+    app = read("web/app.js")
+    assert "window.EpinnoxV5Chart=" in js.replace(" ", "")
+    assert "installDrawingIcons" in js
+    assert "watchDrawingToolbar" in js
+    assert "subtree:true" not in js
+    assert "EpinnoxV5Chart?.installDrawingIcons" in app
+    assert "epinnox:drawing-toolbar" in app
+
+
+def test_product_pages_can_load_named_presets_into_terminal():
+    strategies = read("web/strategies.js")
+    research = read("web/research.js")
+    assert "loadNamedPreset" in strategies
+    assert "/?open=strategy" in strategies
+    assert "loadNamedPreset" in research
+    assert "/?open=strategy" in research

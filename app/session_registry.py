@@ -152,6 +152,7 @@ class PaperSessionRegistry:
             "pending_intent": record["pending_intent"],
             "recovered_count": record["recovered_count"],
             "recoverable": record["status"] in ACTIVE_SESSION_STATUSES,
+            "events": self.store.recent_events(record["session_id"], 50),
         }
 
     def get(self, session_id: str) -> dict[str, Any]:

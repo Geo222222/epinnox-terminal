@@ -24,7 +24,7 @@
       <div class="modes" aria-label="Operating mode">
         <button class="mode active" data-mode="BACKTEST"><span class="mode-dot"></span>Backtest</button>
         <button class="mode" data-mode="PAPER"><span class="mode-dot"></span>Paper</button>
-        <button class="mode" data-mode="LIVE"><span class="mode-dot"></span>Live</button>
+        <button class="mode mode-unarmed" data-mode="LIVE" title="Live mode is visible but unarmed · real order routing stays closed"><span class="mode-dot"></span>Live<span class="mode-lock">UNARMED</span></button>
       </div>
     </header>
 
@@ -49,22 +49,7 @@
     </section>
 
     <main class="workspace">
-      <aside id="sessionRail" class="session-rail" aria-label="Workspaces and paper sessions">
-        <div class="rail-head"><span class="rail-kicker">WORKSPACE</span><span id="sessionCount" class="rail-count">0</span></div>
-        <div class="rail-primary">
-          <button id="railBacktest" class="rail-workspace active" type="button"><strong>CHART</strong><span>Research workspace</span></button>
-          <a class="rail-workspace rail-workspace-link" href="/scanner"><strong>SCANNER</strong><span>Opportunity research</span></a>
-          <a class="rail-workspace rail-workspace-link" href="/sessions"><strong>SESSIONS</strong><span>Paper operations</span></a>
-          <a class="rail-workspace rail-workspace-link" href="/research"><strong>RESEARCH</strong><span>Evidence library</span></a>
-        </div>
-        <div class="rail-section-label">PAPER SESSIONS</div>
-        <div id="sessionList" class="session-list"><div class="rail-empty">Loading durable sessions…</div></div>
-        <div class="rail-foot">
-          <button id="openStrategyTab" class="rail-link rail-button" type="button">⚙ Strategy configuration</button>
-          <span class="rail-link" aria-disabled="true">◎ Live sessions · locked</span>
-          <a class="rail-link" href="/strategies">◇ Strategy library</a>
-        </div>
-      </aside>
+      <aside id="sessionRail" class="session-rail" aria-label="Command center placeholder"></aside>
 
       <section class="chart-workspace">
         <div class="chart-toolbar">

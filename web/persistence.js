@@ -45,7 +45,8 @@
     const saved=readJson(localStorage,LOCAL_KEY),values=saved?.values||backendDefaults(config);
     for(const [id,value] of Object.entries(values))setField(id,value,false);
     if(values.timeframe)syncTimeframeButtons(String(values.timeframe));
-    const desired=saved?.mode||config?.defaults?.terminal?.default_mode||'BACKTEST';
+    const urlMode=(new URLSearchParams(location.search).get('mode')||'').toUpperCase();
+    const desired=['BACKTEST','PAPER','LIVE'].includes(urlMode)?urlMode:(saved?.mode||config?.defaults?.terminal?.default_mode||'BACKTEST');
     const mode=document.querySelector(`.mode[data-mode="${desired}"]`);if(mode&&!mode.classList.contains('active'))mode.click();
     for(const id of persistentIds){const el=document.getElementById(id);if(!el||id==='timeframe')continue;el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true}))}
     const tf=document.getElementById('timeframe')?.value,button=tf&&document.querySelector(`.tf[data-tf="${CSS.escape(tf)}"]`);if(button)button.click();

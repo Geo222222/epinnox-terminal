@@ -28,14 +28,22 @@ def test_universe_surface_is_live_flow_terminal():
         "animateReorder",
         "state-pulse",
         "epinnox:open-chart",
+        "RELATIONSHIP EDGES",
+        "response correlation",
+        "strategy similarity",
+        "PREPARE FOR PAPER",
+        "matchesStrategy",
+        "matchesTimeframe",
     ]:
         assert token in js
 
     assert "cytoscape" not in js.lower()
+    assert "price correlation" not in js.lower().replace("not price correlation", "")
     assert "/api/scanner/runs?limit=1" not in js
     assert ".universe-workspace" in css
     assert ".u-row.state-pulse" in css
     assert "prefers-reduced-motion" in css
+    assert "market-strip" in css
     assert "/static/v4-universe.js" in index
     assert "/static/v4-universe.css" in index
     assert "v4-universe" not in shell
