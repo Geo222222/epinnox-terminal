@@ -50,6 +50,15 @@ def assert_contains(path: str, marker: str) -> None:
     print(f"[ok] {path} -> 200 and contains {marker!r}")
 
 
+def assert_not_contains(path: str, marker: str) -> None:
+    status, _, body = fetch(path)
+    if status != 200:
+        raise AssertionError(f"{path} returned {status}, expected 200")
+    if marker in body:
+        raise AssertionError(f"{path} unexpectedly contains obsolete marker {marker!r}")
+    print(f"[ok] {path} -> does not contain obsolete marker {marker!r}")
+
+
 def assert_json_contract(path: str, checks: dict[str, object]) -> None:
     status, content_type, body = fetch(path)
     if status != 200:
@@ -134,15 +143,36 @@ def run() -> None:
         }.items():
             assert_contains(path, marker)
 
+        # The canonical home surface must be fully declared at first paint.
+        for marker in (
+            '/static/v4-workbench.css',
+            '/static/v4-universe.css',
+            '/static/v5-chart-workspace.css',
+            '/static/v4-workbench.js',
+            '/static/v4-universe.js',
+            '/static/v5-chart-workspace.js',
+        ):
+            assert_contains("/", marker)
+
         for path, marker in {
-            "/static/v4-shell.js": "/static/v4-universe.js",
+            "/static/v4-shell.js": "Canonical home-page assets are loaded directly by index.html",
             "/static/v4-universe.js": "LIVE UNIVERSE",
             "/static/v4-universe.css": "prefers-reduced-motion",
-            "/static/v4-visual-qa.css": "prefers-reduced-motion",
+            "/static/v5-chart-workspace.css": "min-height:180px!important",
             "/static/product-visual-qa.css": "prefers-reduced-motion",
             "/static/research.js": "epinnox.universe.saved.v1",
         }.items():
             assert_contains(path, marker)
+
+        for obsolete in (
+            "v4-command-center",
+            "v4-scanner-v2",
+            "v4-final-chrome",
+            "v4-sitewide",
+            "v4-visual-qa",
+        ):
+            assert_not_contains("/static/v4-shell.js", obsolete)
+            assert_not_contains("/", obsolete)
 
         assert_json_contract("/api/scanner/runs?limit=1", {"schema_version": 1})
         print("[ok] runtime smoke gate passed without market-data or execution mutations")
