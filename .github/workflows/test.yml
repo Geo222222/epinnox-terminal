@@ -29,6 +29,7 @@ jobs:
           node --check web/v4-workbench.js
           node --check web/v4-universe.js
           node --check web/v5-chart-workspace.js
+          node --check web/position-lifecycle.js
       - name: Verify canonical runtime and shell contracts
         run: |
           test -s app/live_intelligence.py
@@ -43,6 +44,7 @@ jobs:
           test -s web/v4-universe.js
           test -s web/v5-chart-workspace.css
           test -s web/v5-chart-workspace.js
+          test -s web/position-lifecycle.js
           test -s web/scanner.html
           test -s web/scanner.js
           test ! -e web/canonical-shell.css
@@ -73,6 +75,10 @@ jobs:
           grep -q 'LIVE CANDIDATE LEADERBOARD' web/scanner.html
           grep -q 'market_flow' app/live_intelligence.py
           grep -q 'market_flow_minute' app/market_flow.py
+          grep -q 'position_id' app/backtest.py
+          grep -q 'level_history' app/backtest.py
+          grep -q 'exited_this_bar' app/backtest.py
+          grep -q 'position-lifecycle.js' web/v4-shell.js
           grep -q '<body class="v5-chart-active">' web/index.html
           grep -q '/static/product-chrome.css' web/index.html
           grep -q '/static/product-chrome.js' web/index.html
