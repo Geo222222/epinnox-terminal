@@ -15,6 +15,7 @@ def test_v5_chart_workspace_assets_are_part_of_initial_page_boot():
 
     assert '/static/v5-chart-workspace.css' in index
     assert '/static/v5-chart-workspace.js' in index
+    assert '<body class="v5-chart-active">' in index
     assert 'v5-chart-workspace' not in shell
     assert "v5QuickStrategy" in js
     assert "v5StrategyModal" in js
@@ -49,6 +50,17 @@ def test_v5_uses_scoped_body_class_observer_only():
     js = read("web/v5-chart-workspace.js")
     assert "bodyObserver.observe(document.body,{attributes:true,attributeFilter:['class']})" in js
     assert "subtree:true" not in js
+
+
+def test_v5_has_no_retired_takeover_compatibility_paths():
+    js = read("web/v5-chart-workspace.js")
+    assert "scanner-active" not in js
+    assert "railScanner" not in js
+    assert "installStyle" not in js
+    assert "modalSnapshot" not in js
+    assert "snapshotStrategy" not in js
+    assert "strategyFields" not in js
+    assert "bindLegacyStrategyEntrypoints" not in js
 
 
 def test_v5_drawing_and_navigation_controls_use_svg_icons():
