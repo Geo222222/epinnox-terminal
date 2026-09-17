@@ -1,68 +1,9 @@
 (()=>{
   if(window.__EPINNOX_V4_SHELL__)return;
   window.__EPINNOX_V4_SHELL__=true;
-  if(!document.querySelector('script[src="/static/v4-workbench.js"]')){
-    const workbench=document.createElement('script');
-    workbench.src='/static/v4-workbench.js';
-    workbench.defer=true;
-    document.body.appendChild(workbench);
-  }
-  if(!document.querySelector('link[href="/static/v4-command-center.css"]')){
-    const style=document.createElement('link');
-    style.rel='stylesheet';style.href='/static/v4-command-center.css';document.head.appendChild(style);
-  }
-  if(!document.querySelector('script[src="/static/v4-command-center.js"]')){
-    const cc=document.createElement('script');
-    cc.src='/static/v4-command-center.js';
-    cc.defer=true;
-    document.body.appendChild(cc);
-  }
-  if(!document.querySelector('script[src="/static/v4-scanner-v2.js"]')){
-    const scannerV2=document.createElement('script');
-    scannerV2.src='/static/v4-scanner-v2.js';
-    scannerV2.defer=true;
-    document.body.appendChild(scannerV2);
-  }
-  if(!document.querySelector('link[href="/static/v4-universe.css"]')){
-    const universeStyle=document.createElement('link');
-    universeStyle.rel='stylesheet';universeStyle.href='/static/v4-universe.css';document.head.appendChild(universeStyle);
-  }
-  if(!document.querySelector('script[src="/static/v4-universe.js"]')){
-    const universe=document.createElement('script');
-    universe.src='/static/v4-universe.js';
-    universe.defer=true;
-    document.body.appendChild(universe);
-  }
-  if(!document.querySelector('link[href="/static/v4-final-chrome.css"]')){
-    const chromeStyle=document.createElement('link');
-    chromeStyle.rel='stylesheet';chromeStyle.href='/static/v4-final-chrome.css';document.head.appendChild(chromeStyle);
-  }
-  if(!document.querySelector('script[src="/static/v4-final-chrome.js"]')){
-    const chrome=document.createElement('script');
-    chrome.src='/static/v4-final-chrome.js';
-    chrome.defer=true;
-    document.body.appendChild(chrome);
-  }
-  if(!document.querySelector('link[href="/static/v4-sitewide.css"]')){
-    const polishStyle=document.createElement('link');
-    polishStyle.rel='stylesheet';polishStyle.href='/static/v4-sitewide.css';document.head.appendChild(polishStyle);
-  }
-  if(!document.querySelector('script[src="/static/v4-sitewide.js"]')){
-    const polish=document.createElement('script');
-    polish.src='/static/v4-sitewide.js';
-    polish.defer=true;
-    document.body.appendChild(polish);
-  }
-  if(!document.querySelector('link[href="/static/v4-visual-qa.css"]')){
-    const qaStyle=document.createElement('link');
-    qaStyle.rel='stylesheet';qaStyle.href='/static/v4-visual-qa.css';document.head.appendChild(qaStyle);
-  }
-  if(!document.querySelector('link[href="/static/v5-chart-workspace.css"]')){
-    const chartStyle=document.createElement('link');chartStyle.rel='stylesheet';chartStyle.href='/static/v5-chart-workspace.css';document.head.appendChild(chartStyle);
-  }
-  if(!document.querySelector('script[src="/static/v5-chart-workspace.js"]')){
-    const chartV5=document.createElement('script');chartV5.src='/static/v5-chart-workspace.js';chartV5.defer=true;document.body.appendChild(chartV5);
-  }
+
+  // Canonical home-page assets are loaded directly by index.html. This module
+  // owns durable session/rail coordination only; it must not inject UI layers.
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
   const list=document.getElementById('sessionList');
