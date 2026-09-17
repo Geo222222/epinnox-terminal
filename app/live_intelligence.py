@@ -22,6 +22,7 @@ from .storage import DB_PATH
 logger = logging.getLogger("epinnox.live-intelligence")
 ROOT = Path(__file__).resolve().parent.parent
 TAXONOMY_PATH = ROOT / "config" / "asset_taxonomy.json"
+FLOW_WINDOWS = {"5m", "1h", "4h", "8h", "24h", "NEW_YORK", "LONDON", "ASIA"}
 
 
 class LiveIntelligenceRuntime:
@@ -445,7 +446,10 @@ class LiveIntelligenceRuntime:
                 "events": list(self._events)[:30],
             }
 
-    def universe_snapshot(self) -> dict[str, Any]:
+    def universe_snapshot(self, selected_window: str = "8h") -> dict[str, Any]:
+        selected_window = "5m" if selected_window == "LIVE" else selected_window
+        if selected_window not in FLOW_WINDOWS:
+            raise ValueError(f"Unsupported Universe flow window: {selected_window}")
         with self._lock:
             catalog = deepcopy(self._catalog)
             evidence = [deepcopy(row) for key, row in self._evidence.items() if not key.startswith("__error__|")]
@@ -484,7 +488,7 @@ class LiveIntelligenceRuntime:
             category_counts[category] = category_counts.get(category, 0) + 1
             move = abs(float(market.get("change_24h_pct") or 0.0))
             volatility = "HIGH" if move >= 8 else ("ELEVATED" if move >= 3 else "NORMAL")
-            flow = market_flow.asset_snapshot(market, "8h")
+            flow = market_flow.asset_snapshot(market, selected_window)
             components = self._scanner_components(best, coverage_pct)
             scanner_score = self._scanner_score(components)
             assets.append({
@@ -546,6 +550,7 @@ class LiveIntelligenceRuntime:
             "schema_version": 2,
             "source": "HTX canonical market + normalized flow collector",
             "generated_at_ms": now,
+            "selected_window": selected_window,
             "runtime": status,
             "summary": {
                 "assets": len(assets),
