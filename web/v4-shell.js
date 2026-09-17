@@ -2,13 +2,17 @@
   if(window.__EPINNOX_V4_SHELL__)return;
   window.__EPINNOX_V4_SHELL__=true;
 
-  // Canonical navigation and home-page surfaces are declared in index.html.
-  // This module owns durable session/rail coordination only.
+  // Chart owns page-specific content; this module owns the canonical application rail
+  // and durable paper-session coordination for the chart route.
+  const style=document.createElement('link');
+  style.rel='stylesheet';style.href='/static/canonical-shell.css';style.dataset.epinnoxCanonicalShell='true';
+  document.head.appendChild(style);
+
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
   const list=document.getElementById('sessionList');
   const count=document.getElementById('sessionCount');
-  const backtest=document.getElementById('railBacktest');
+  const primary=rail.querySelector('.rail-primary');
   const strategy=document.getElementById('openStrategyTab');
   let selected=sessionStorage.getItem('epinnox.v4.selectedSession')||'';
   let timer=null;
@@ -16,6 +20,19 @@
   const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const symbolLabel=s=>String(s||'—').split(':')[0].replace('/','');
   const activeStates=new Set(['RUNNING','RECOVERED','RECONCILING','RECOVERY_REQUIRED']);
+
+  function installCanonicalNavigation(){
+    if(!primary)return;
+    primary.innerHTML=`
+      <button id="railBacktest" class="rail-workspace active" type="button"><strong>CHART</strong><span>Market workspace</span></button>
+      <a class="rail-workspace rail-workspace-link" href="/scanner"><strong>SCANNER</strong><span>Live opportunity discovery</span></a>
+      <a class="rail-workspace rail-workspace-link" href="/?universe=1" data-universe-nav><strong>UNIVERSE</strong><span>Market intelligence</span></a>
+      <a class="rail-workspace rail-workspace-link" href="/sessions"><strong>SESSIONS</strong><span>Paper operations</span></a>
+      <a class="rail-workspace rail-workspace-link" href="/research"><strong>RESEARCH</strong><span>Evidence library</span></a>
+      <a class="rail-workspace rail-workspace-link" href="/strategies"><strong>STRATEGIES</strong><span>Models & presets</span></a>`;
+  }
+  installCanonicalNavigation();
+  const backtest=document.getElementById('railBacktest');
 
   function modeButton(mode){return document.querySelector(`.mode[data-mode="${mode}"]`)}
   function setBacktestActive(on){backtest?.classList.toggle('active',on)}
@@ -64,6 +81,11 @@
     setBacktestActive(true);
     modeButton('BACKTEST')?.click();
     list?.querySelectorAll('.session-card').forEach(x=>x.classList.remove('active'));
+  });
+  primary?.querySelector('[data-universe-nav]')?.addEventListener('click',e=>{
+    // Universe is an in-app surface on the chart route. Avoid a full navigation when already here.
+    e.preventDefault();
+    document.getElementById('railUniverse')?.click();
   });
   strategy?.addEventListener('click',()=>document.querySelector('.inspector-tab[data-inspector-tab="strategyPanel"]')?.click());
   document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',()=>setBacktestActive(btn.dataset.mode==='BACKTEST')));
