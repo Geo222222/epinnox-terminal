@@ -145,6 +145,11 @@ def run() -> None:
 
         # The canonical home surface must be fully declared at first paint.
         for marker in (
+            '<body class="v5-chart-active">',
+            'id="openStrategyTab"',
+            'href="/sessions"',
+            'href="/research"',
+            'href="/strategies"',
             '/static/v4-workbench.css',
             '/static/v4-universe.css',
             '/static/v5-chart-workspace.css',
@@ -155,7 +160,7 @@ def run() -> None:
             assert_contains("/", marker)
 
         for path, marker in {
-            "/static/v4-shell.js": "Canonical home-page assets are loaded directly by index.html",
+            "/static/v4-shell.js": "Canonical navigation and home-page surfaces are declared in index.html.",
             "/static/v4-universe.js": "LIVE UNIVERSE",
             "/static/v4-universe.css": "prefers-reduced-motion",
             "/static/v5-chart-workspace.css": "min-height:180px!important",
@@ -173,6 +178,13 @@ def run() -> None:
         ):
             assert_not_contains("/static/v4-shell.js", obsolete)
             assert_not_contains("/", obsolete)
+
+        assert_not_contains("/static/v4-shell.js", "insertAdjacentHTML")
+        assert_not_contains("/static/v4-shell.js", "railStrategy")
+        assert_not_contains("/static/v5-chart-workspace.js", "scanner-active")
+        assert_not_contains("/static/v5-chart-workspace.js", "railScanner")
+        assert_not_contains("/static/v5-chart-workspace.js", "installStyle")
+        assert_not_contains("/static/v5-chart-workspace.js", "modalSnapshot")
 
         assert_json_contract("/api/scanner/runs?limit=1", {"schema_version": 1})
         print("[ok] runtime smoke gate passed without market-data or execution mutations")
