@@ -8,10 +8,11 @@ def read(name: str) -> str:
     return (WEB / name).read_text(encoding="utf-8")
 
 
-def test_v4_qa_asset_is_loaded_after_universe_safety():
+def test_v4_qa_asset_is_loaded_after_universe_surface():
     shell = read("v4-shell.js")
+    assert "/static/v4-universe.css" in shell
     assert "/static/v4-visual-qa.css" in shell
-    assert shell.index("/static/v4-visual-qa.css") > shell.index("/static/v4-universe-safety.css")
+    assert shell.index("/static/v4-visual-qa.css") > shell.index("/static/v4-universe.css")
 
 
 def test_v4_qa_covers_reference_viewports_and_surfaces():
@@ -23,12 +24,17 @@ def test_v4_qa_covers_reference_viewports_and_surfaces():
         ".chart-workspace",
         ".scanner-workspace-v4",
         ".universe-workspace",
-        ".universe-main",
         ".bottom-dock",
         ".inspector",
     ]:
         assert selector in css
     assert "prefers-reduced-motion" in css
+
+    universe_css = read("v4-universe.css")
+    assert ".u-body" in universe_css
+    assert ".u-table-shell" in universe_css
+    assert ".u-inspector" in universe_css
+    assert "prefers-reduced-motion" in universe_css
 
 
 def test_standalone_product_pages_share_visual_qa():
