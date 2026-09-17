@@ -27,11 +27,7 @@ jobs:
           node --check web/product-chrome.js
           node --check web/v4-shell.js
           node --check web/v4-workbench.js
-          node --check web/v4-command-center.js
-          node --check web/v4-scanner-v2.js
           node --check web/v4-universe.js
-          node --check web/v4-final-chrome.js
-          node --check web/v4-sitewide.js
           node --check web/v5-chart-workspace.js
       - name: Verify canonical live intelligence assets
         run: |
@@ -43,9 +39,21 @@ jobs:
           test -s docs/TRADINGVIEW_PARITY.md
           test -s web/v4-universe.css
           test -s web/v4-universe.js
+          test -s web/v4-workbench.css
+          test -s web/v4-workbench.js
+          test -s web/v5-chart-workspace.css
+          test -s web/v5-chart-workspace.js
           test -s web/scanner.html
           test -s web/scanner.css
           test -s web/scanner.js
+          test ! -e web/v4-command-center.css
+          test ! -e web/v4-command-center.js
+          test ! -e web/v4-scanner-v2.js
+          test ! -e web/v4-final-chrome.css
+          test ! -e web/v4-final-chrome.js
+          test ! -e web/v4-sitewide.css
+          test ! -e web/v4-sitewide.js
+          test ! -e web/v4-visual-qa.css
           test ! -e web/v4-universe-refine.css
           test ! -e web/v4-universe-refine.js
           test ! -e web/v4-universe-safety.css
@@ -61,13 +69,20 @@ jobs:
           grep -q 'LIVE CANDIDATE LEADERBOARD' web/scanner.html
           grep -q 'market_flow' app/live_intelligence.py
           grep -q 'market_flow_minute' app/market_flow.py
-          grep -q 'v4-universe.js' web/v4-shell.js
-          ! grep -q 'v4-universe-refine' web/v4-shell.js
-          ! grep -q 'v4-universe-safety' web/v4-shell.js
+          grep -q '/static/v4-workbench.css' web/index.html
+          grep -q '/static/v4-universe.css' web/index.html
+          grep -q '/static/v5-chart-workspace.css' web/index.html
+          grep -q '/static/v4-workbench.js' web/index.html
+          grep -q '/static/v4-universe.js' web/index.html
+          grep -q '/static/v5-chart-workspace.js' web/index.html
+          ! grep -q 'createElement.*script' web/v4-shell.js
+          ! grep -q 'v4-command-center' web/v4-shell.js
+          ! grep -q 'v4-scanner-v2' web/v4-shell.js
+          ! grep -q 'v4-final-chrome' web/v4-shell.js
+          ! grep -q 'v4-sitewide' web/v4-shell.js
+          ! grep -q 'v4-visual-qa' web/v4-shell.js
           ! grep -q '/api/scanner/run' web/scanner.js
           ! grep -q 'Run opportunity scan' web/scanner.html
-          ! grep -R -q 'v4-universe-refine' web tests .github || false
-          ! grep -R -q 'v4-universe-safety' web tests .github || false
       - name: Runtime HTTP smoke test
         run: python scripts/runtime_smoke.py
       - name: Upload pytest report
