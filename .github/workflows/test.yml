@@ -29,23 +29,22 @@ jobs:
           node --check web/v4-workbench.js
           node --check web/v4-universe.js
           node --check web/v5-chart-workspace.js
-      - name: Verify canonical live intelligence assets
+      - name: Verify canonical runtime and shell contracts
         run: |
           test -s app/live_intelligence.py
           test -s app/market_flow.py
           test -s config/asset_taxonomy.json
           test -s scripts/runtime_smoke.py
           test -s docs/RUNTIME_VALIDATION.md
-          test -s docs/TRADINGVIEW_PARITY.md
+          test -s web/product-chrome.css
+          test -s web/product-chrome.js
           test -s web/v4-universe.css
           test -s web/v4-universe.js
-          test -s web/v4-workbench.css
-          test -s web/v4-workbench.js
           test -s web/v5-chart-workspace.css
           test -s web/v5-chart-workspace.js
           test -s web/scanner.html
-          test -s web/scanner.css
           test -s web/scanner.js
+          test ! -e web/canonical-shell.css
           test ! -e web/v4-command-center.css
           test ! -e web/v4-command-center.js
           test ! -e web/v4-scanner-v2.js
@@ -58,41 +57,40 @@ jobs:
           test ! -e web/v4-universe-refine.js
           test ! -e web/v4-universe-safety.css
           test ! -e web/v4-universe-safety.js
+          grep -q '__EPINNOX_CANONICAL_SHELL__' web/product-chrome.js
+          grep -q 'ep-global-header' web/product-chrome.js
+          grep -q 'ep-global-nav' web/product-chrome.js
+          grep -q 'ep-global-footer' web/product-chrome.js
+          grep -q 'ep-primary-nav rail-primary' web/product-chrome.js
+          grep -q "\['Universe','/?universe=1','Market intelligence'" web/product-chrome.js
           grep -q '/api/live/universe' web/v4-universe.js
           grep -q '/api/live/status' web/scanner.js
           grep -q '/api/live/universe' web/scanner.js
           grep -q '/api/live/control' web/scanner.js
           grep -q '/api/live/mandate' web/scanner.js
-          grep -q 'LIVE UNIVERSE' web/v4-universe.js
-          grep -q 'LIVE SCANNER' web/v4-universe.js
           grep -q 'SCANNER MANDATE' web/scanner.html
           grep -q 'LIVE CANDIDATE LEADERBOARD' web/scanner.html
           grep -q 'market_flow' app/live_intelligence.py
           grep -q 'market_flow_minute' app/market_flow.py
           grep -q '<body class="v5-chart-active">' web/index.html
-          grep -q 'id="openStrategyTab"' web/index.html
-          grep -q 'href="/sessions"' web/index.html
-          grep -q 'href="/research"' web/index.html
-          grep -q 'href="/strategies"' web/index.html
-          grep -q '/static/v4-workbench.css' web/index.html
-          grep -q '/static/v4-universe.css' web/index.html
-          grep -q '/static/v5-chart-workspace.css' web/index.html
-          grep -q '/static/v4-workbench.js' web/index.html
           grep -q '/static/v4-universe.js' web/index.html
           grep -q '/static/v5-chart-workspace.js' web/index.html
-          ! grep -q 'createElement.*script' web/v4-shell.js
-          ! grep -q 'insertAdjacentHTML' web/v4-shell.js
-          ! grep -q 'railStrategy' web/v4-shell.js
+          grep -q '/static/product-chrome.js' web/scanner.html
+          grep -q '/static/product-chrome.js' web/sessions.html
+          grep -q '/static/product-chrome.js' web/research.html
+          grep -q '/static/product-chrome.js' web/strategies.html
+          ! grep -q 'installCanonicalNavigation' web/v4-shell.js
+          ! grep -q 'installRailIcons' web/v5-chart-workspace.js
+          ! grep -q 'navIcons' web/v5-chart-workspace.js
           ! grep -q 'scanner-active' web/v5-chart-workspace.js
           ! grep -q 'railScanner' web/v5-chart-workspace.js
           ! grep -q 'installStyle' web/v5-chart-workspace.js
           ! grep -q 'modalSnapshot' web/v5-chart-workspace.js
           ! grep -q 'snapshotStrategy' web/v5-chart-workspace.js
           ! grep -q 'strategyFields' web/v5-chart-workspace.js
-          ! grep -q 'bindLegacyStrategyEntrypoints' web/v5-chart-workspace.js
           ! grep -q '/api/scanner/run' web/scanner.js
           ! grep -q 'Run opportunity scan' web/scanner.html
-          ! grep -R -E 'v4-command-center|v4-scanner-v2|v4-final-chrome|v4-sitewide|v4-visual-qa|v4-universe-refine|v4-universe-safety' README.md docs web
+          ! grep -R -E 'v4-command-center|v4-scanner-v2|v4-final-chrome|v4-sitewide|v4-visual-qa|v4-universe-refine|v4-universe-safety|canonical-shell.css' README.md docs web --exclude='product-chrome.js'
       - name: Runtime HTTP smoke test
         run: python scripts/runtime_smoke.py
       - name: Upload pytest report
