@@ -2,21 +2,14 @@
   if(window.__EPINNOX_V4_SHELL__)return;
   window.__EPINNOX_V4_SHELL__=true;
 
-  // Canonical home-page assets are loaded directly by index.html. This module
-  // owns durable session/rail coordination only; it must not inject UI layers.
+  // Canonical navigation and home-page surfaces are declared in index.html.
+  // This module owns durable session/rail coordination only.
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
   const list=document.getElementById('sessionList');
   const count=document.getElementById('sessionCount');
   const backtest=document.getElementById('railBacktest');
-  const strategy=document.getElementById('railStrategy');
-  if(strategy)strategy.id='openStrategyTab';
-  const primary=rail.querySelector('.rail-primary');
-  if(primary&&!primary.querySelector('a[href="/sessions"]')){
-    primary.insertAdjacentHTML('beforeend','<a class="rail-workspace rail-workspace-link" href="/sessions"><strong>SESSIONS</strong><span>Paper operations</span></a><a class="rail-workspace rail-workspace-link" href="/research"><strong>RESEARCH</strong><span>Evidence library</span></a>');
-  }
-  const foot=rail.querySelector('.rail-foot');
-  if(foot&&!foot.querySelector('a[href="/strategies"]'))foot.insertAdjacentHTML('beforeend','<a class="rail-link" href="/strategies">◇ Strategy library</a>');
+  const strategy=document.getElementById('openStrategyTab');
   let selected=sessionStorage.getItem('epinnox.v4.selectedSession')||'';
   let timer=null;
 
