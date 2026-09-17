@@ -37,12 +37,6 @@
 
   const navIcons={CHART:'chart',SCANNER:'scanner',UNIVERSE:'universe',SESSIONS:'sessions',RESEARCH:'research'};
   const drawIcons={cursor:'cursor',trend:'trend',horizontal:'horizontal',vertical:'vertical',channel:'channel',path:'path',fib:'fib',text:'text',ruler:'ruler',zoom:'zoom'};
-  let modalSnapshot=null;
-
-  function installStyle(){
-    if(document.querySelector('link[href="/static/v5-chart-workspace.css"]'))return;
-    const link=document.createElement('link');link.rel='stylesheet';link.href='/static/v5-chart-workspace.css';document.head.appendChild(link);
-  }
 
   function installRailIcons(){
     const rail=$('sessionRail');if(!rail)return;
@@ -109,14 +103,6 @@
     tab.classList.add('active');host.classList.remove('hidden');
   }
 
-  function strategyFields(){
-    return ['backtestProfile','startDate','endDate','strategy','confirm1','confirm2','confirmationPolicy','confirmationRequired','confirmationWindow','direction','bars','balance','leverage','allocation','pyramiding','entryFee','exitFee','extraCost','netTarget','referral','maintenance','maxBars','stopLoss','manualParams'];
-  }
-
-  function snapshotStrategy(){
-    const out={};strategyFields().forEach(id=>{const el=$(id);if(el)out[id]=el.value});return out;
-  }
-
   function installStrategyModal(){
     const panel=$('strategyPanel');if(!panel||$('v5StrategyModal'))return;
     const modal=document.createElement('div');modal.id='v5StrategyModal';modal.className='v5-modal hidden';modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','v5StrategyModalTitle');
@@ -129,12 +115,12 @@
 
   function openStrategyModal(){
     const modal=$('v5StrategyModal');if(!modal)return;
-    modalSnapshot=snapshotStrategy();modal.classList.remove('hidden');document.body.classList.add('v5-modal-open');
+    modal.classList.remove('hidden');document.body.classList.add('v5-modal-open');
     requestAnimationFrame(()=>modal.querySelector('select,input,button')?.focus());
   }
   function closeStrategyModal(){
     const modal=$('v5StrategyModal');if(!modal)return;
-    modal.classList.add('hidden');document.body.classList.remove('v5-modal-open');modalSnapshot=null;$('v5StrategySettings')?.focus();
+    modal.classList.add('hidden');document.body.classList.remove('v5-modal-open');$('v5StrategySettings')?.focus();
   }
 
   function installDockControls(){
@@ -151,20 +137,20 @@
     try{if(sessionStorage.getItem('epinnox.v5.dockCollapsed')==='1')$('v5DockToggle')?.click()}catch{}
   }
 
-  function bindLegacyStrategyEntrypoints(){
+  function bindStrategyEntrypoints(){
     const button=$('openStrategyTab');if(button&&!button.dataset.v5Bound){button.dataset.v5Bound='1';button.addEventListener('click',openStrategyModal,true)}
   }
 
-  function surfaceIsChart(){return !document.body.classList.contains('scanner-active')&&!document.body.classList.contains('universe-active')}
+  function surfaceIsChart(){return !document.body.classList.contains('universe-active')}
   function syncSurface(){document.body.classList.toggle('v5-chart-active',surfaceIsChart())}
 
   function boot(){
-    installStyle();installRailIcons();installDrawingIcons();installQuickStrategy();installChartActionIcons();installPositionDock();installStrategyModal();installDockControls();bindLegacyStrategyEntrypoints();syncSurface();
+    installRailIcons();installDrawingIcons();installQuickStrategy();installChartActionIcons();installPositionDock();installStrategyModal();installDockControls();bindStrategyEntrypoints();syncSurface();
     const bodyObserver=new MutationObserver(syncSurface);bodyObserver.observe(document.body,{attributes:true,attributeFilter:['class']});
     document.addEventListener('epinnox:session-selected',()=>requestAnimationFrame(syncSurface));
-    document.querySelectorAll('#railBacktest,#railScanner,#railUniverse,.mode').forEach(el=>el.addEventListener('click',()=>requestAnimationFrame(syncSurface)));
+    document.querySelectorAll('#railBacktest,#railUniverse,.mode').forEach(el=>el.addEventListener('click',()=>requestAnimationFrame(syncSurface)));
     window.EpinnoxV5Chart={openStrategySettings:openStrategyModal,closeStrategySettings:closeStrategyModal,syncSurface};
   }
 
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0),{once:true});else setTimeout(boot,0);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
