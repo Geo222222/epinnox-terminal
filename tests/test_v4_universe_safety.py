@@ -6,8 +6,8 @@ WEB = ROOT / "web"
 
 def test_universe_has_one_runtime_surface_and_no_legacy_overlays():
     shell = (WEB / "v4-shell.js").read_text(encoding="utf-8")
-    assert shell.count("/static/v4-universe.js") == 1
-    assert shell.count("/static/v4-universe.css") == 1
+    assert shell.count("universe.src='/static/v4-universe.js'") == 1
+    assert shell.count("universeStyle.href='/static/v4-universe.css'") == 1
     assert "v4-universe-refine" not in shell
     assert "v4-universe-safety" not in shell
     for obsolete in (
