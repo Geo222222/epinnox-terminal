@@ -33,7 +33,7 @@ def build_tester(candles, **overrides):
         "entry_fee_pct": 0,
         "exit_fee_pct": 0,
         "extra_cost_pct": 0,
-        "desired_net_profit_pct": 50,
+        "desired_net_profit_pct": 20,
         "pyramiding": 1,
     }
     values.update(overrides)
