@@ -41,6 +41,21 @@ def test_universe_surface_is_live_flow_terminal():
     assert "v4-universe-safety" not in shell
 
 
+def test_universe_selected_session_drives_backend_flow_baseline():
+    js = (WEB / "v4-universe.js").read_text(encoding="utf-8")
+    main = (ROOT / "app" / "main.py").read_text(encoding="utf-8")
+    runtime = (ROOT / "app" / "live_intelligence.py").read_text(encoding="utf-8")
+
+    assert "windowKey=state.session==='LIVE'?'5m':state.session" in js
+    assert "/api/live/universe?window=${encodeURIComponent(windowKey)}" in js
+    assert "state.session=b.dataset.session;save();syncControls();refresh(true)" in js
+    assert "f.selected_window===normalized" in js
+    assert 'def live_universe(window: str = Query("8h"))' in main
+    assert "live_intelligence.universe_snapshot(window)" in main
+    assert 'def universe_snapshot(self, selected_window: str = "8h")' in runtime
+    assert "market_flow.asset_snapshot(market, selected_window)" in runtime
+
+
 def test_universe_motion_is_event_driven_not_clock_decoration():
     js = (WEB / "v4-universe.js").read_text(encoding="utf-8")
     css = (WEB / "v4-universe.css").read_text(encoding="utf-8")
