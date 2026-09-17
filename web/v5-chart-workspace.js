@@ -10,6 +10,7 @@
     universe:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2.2"/><circle cx="18" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><path d="M8 7l7.8-.7M7.4 8.7l3.5 7.1M16.8 8l-3.5 7.9"/></svg>',
     sessions:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h8M8 13h5"/><circle cx="17" cy="15" r="1.6"/></svg>',
     research:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v5h4M10 12h6M10 16h6"/></svg>',
+    strategies:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
     settings:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19 13.5l1.5 1.1-2 3.4-1.8-.7a7.5 7.5 0 0 1-2.1 1.2L14.3 21h-4.6l-.3-2.5a7.5 7.5 0 0 1-2.1-1.2l-1.8.7-2-3.4L5 13.5a7.8 7.8 0 0 1 0-3L3.5 9.4l2-3.4 1.8.7a7.5 7.5 0 0 1 2.1-1.2L9.7 3h4.6l.3 2.5a7.5 7.5 0 0 1 2.1 1.2l1.8-.7 2 3.4L19 10.5a7.8 7.8 0 0 1 0 3z"/></svg>',
     fit:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/><path d="M3 8l5-5m13 5l-5-5M3 16l5 5m13-5l-5 5"/></svg>',
     indicator:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l5-6 4 3 5-8 4 3"/><path d="M3 21h18"/></svg>',
@@ -35,7 +36,7 @@
     trash:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg>'
   }[name]||'');
 
-  const navIcons={CHART:'chart',SCANNER:'scanner',UNIVERSE:'universe',SESSIONS:'sessions',RESEARCH:'research'};
+  const navIcons={CHART:'chart',SCANNER:'scanner',UNIVERSE:'universe',SESSIONS:'sessions',RESEARCH:'research',STRATEGIES:'strategies'};
   const drawIcons={cursor:'cursor',trend:'trend',horizontal:'horizontal',vertical:'vertical',channel:'channel',path:'path',fib:'fib',text:'text',ruler:'ruler',zoom:'zoom'};
   let modalSnapshot=null;
 
@@ -160,11 +161,12 @@
   function syncSurface(){document.body.classList.toggle('v5-chart-active',surfaceIsChart())}
 
   function boot(){
-    installStyle();installRailIcons();installDrawingIcons();installQuickStrategy();installChartActionIcons();installPositionDock();installStrategyModal();installDockControls();bindLegacyStrategyEntrypoints();syncSurface();
+    installStyle();installRailIcons();installQuickStrategy();installChartActionIcons();installPositionDock();installStrategyModal();installDockControls();bindLegacyStrategyEntrypoints();syncSurface();
     const bodyObserver=new MutationObserver(syncSurface);bodyObserver.observe(document.body,{attributes:true,attributeFilter:['class']});
     document.addEventListener('epinnox:session-selected',()=>requestAnimationFrame(syncSurface));
     document.querySelectorAll('#railBacktest,#railScanner,#railUniverse,.mode').forEach(el=>el.addEventListener('click',()=>requestAnimationFrame(syncSurface)));
-    window.EpinnoxV5Chart={openStrategySettings:openStrategyModal,closeStrategySettings:closeStrategyModal,syncSurface};
+    if($('drawingToolbar')){installDrawingIcons()}else{const tbObs=new MutationObserver(()=>{if($('drawingToolbar')){tbObs.disconnect();installDrawingIcons()}});tbObs.observe(document.body,{childList:true,subtree:true})}
+    window.EpinnoxV5Chart={openStrategySettings:openStrategyModal,closeStrategySettings:closeStrategyModal,syncSurface,installDrawingIcons};
   }
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0),{once:true});else setTimeout(boot,0);

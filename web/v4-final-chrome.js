@@ -63,11 +63,10 @@
 
   function installRailIcons(){
     const rail=$('sessionRail');if(!rail)return;
-    const mapping={CHART:'⌁',SCANNER:'⌘',UNIVERSE:'⌘',SESSIONS:'▣',RESEARCH:'◇'};
     rail.querySelectorAll('.rail-workspace').forEach(el=>{
-      if(el.querySelector('.rail-nav-icon'))return;
+      if(el.querySelector('.rail-nav-icon')||el.querySelector('.v5-nav-icon'))return;
       const strong=el.querySelector('strong'),label=strong?.textContent?.trim()?.toUpperCase();if(!label)return;
-      const ico=document.createElement('span');ico.className=`rail-nav-icon rail-nav-${label.toLowerCase()}`;ico.textContent=mapping[label]||'◇';el.insertBefore(ico,el.firstChild);el.classList.add('rail-workspace-polished');
+      const ico=document.createElement('span');ico.className=`rail-nav-icon rail-nav-${label.toLowerCase()}`;ico.textContent='◇';el.insertBefore(ico,el.firstChild);el.classList.add('rail-workspace-polished');
     });
   }
 
@@ -197,7 +196,7 @@
 
   function observeDynamicUi(){
     if(bodyObserver)return;
-    const ignored='#chromeTickerDeck,#chromeFooter,#inspectorAssetHero,#universeMarketCard,.universe-token-icon';
+    const ignored='#chromeTickerDeck,#chromeFooter,#inspectorAssetHero,#universeMarketCard,.universe-token-icon,.v5-nav-icon,.v5-icon-button,.drawing-toolbar';
     bodyObserver=new MutationObserver(records=>{
       const allInternal=records.length&&records.every(r=>r.target instanceof Element&&r.target.closest(ignored));
       if(!allInternal)scheduleDecorInstall();

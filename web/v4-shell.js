@@ -97,10 +97,9 @@
   if(strategy)strategy.id='openStrategyTab';
   const primary=rail.querySelector('.rail-primary');
   if(primary&&!primary.querySelector('a[href="/sessions"]')){
-    primary.insertAdjacentHTML('beforeend','<a class="rail-workspace rail-workspace-link" href="/sessions"><strong>SESSIONS</strong><span>Paper operations</span></a><a class="rail-workspace rail-workspace-link" href="/research"><strong>RESEARCH</strong><span>Evidence library</span></a>');
+    primary.insertAdjacentHTML('beforeend','<a class="rail-workspace rail-workspace-link" href="/sessions"><strong>SESSIONS</strong><span>Paper operations</span></a><a class="rail-workspace rail-workspace-link" href="/research"><strong>RESEARCH</strong><span>Evidence library</span></a><a class="rail-workspace rail-workspace-link" href="/strategies"><strong>STRATEGIES</strong><span>Models & presets</span></a>');
   }
   const foot=rail.querySelector('.rail-foot');
-  if(foot&&!foot.querySelector('a[href="/strategies"]'))foot.insertAdjacentHTML('beforeend','<a class="rail-link" href="/strategies">◇ Strategy library</a>');
   let selected=sessionStorage.getItem('epinnox.v4.selectedSession')||'';
   let timer=null;
 
