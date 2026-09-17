@@ -35,6 +35,7 @@ jobs:
           test -s app/market_flow.py
           test -s config/asset_taxonomy.json
           test -s scripts/runtime_smoke.py
+          test -s scripts/visual_shell_smoke.py
           test -s docs/RUNTIME_VALIDATION.md
           test -s web/product-chrome.css
           test -s web/product-chrome.js
@@ -100,3 +101,27 @@ jobs:
           name: pytest-report-${{ github.run_id }}
           path: pytest-report.xml
           if-no-files-found: warn
+
+  visual-shell:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      EPINNOX_DISABLE_LIVE_INTELLIGENCE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pip install playwright
+      - run: python -m playwright install --with-deps chromium
+      - name: Capture and assert canonical shell
+        run: python scripts/visual_shell_smoke.py
+      - name: Upload visual shell screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-shell-${{ github.run_id }}
+          path: artifacts/visual-shell
+          if-no-files-found: error
