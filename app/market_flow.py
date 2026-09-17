@@ -186,6 +186,13 @@ class MarketFlowEngine:
                 );
                 CREATE INDEX IF NOT EXISTS idx_market_flow_asset_time
                   ON market_flow_minute(canonical_asset, minute_ms);
+                CREATE TABLE IF NOT EXISTS market_flow_cursor (
+                    venue TEXT NOT NULL,
+                    venue_symbol TEXT NOT NULL,
+                    last_ts_ms INTEGER NOT NULL,
+                    updated_at_ms INTEGER NOT NULL,
+                    PRIMARY KEY(venue, venue_symbol)
+                );
                 """
             )
 
@@ -224,6 +231,35 @@ class MarketFlowEngine:
                     while history and history[0][0] < cutoff:
                         history.popleft()
 
+    def _cursor_for_symbol(self, symbol: str, now_ms: int) -> int:
+        with self._lock:
+            cached = self._cursors.get(symbol)
+        if cached is not None:
+            return cached
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT last_ts_ms FROM market_flow_cursor WHERE venue=? AND venue_symbol=?",
+                (VENUE, symbol),
+            ).fetchone()
+        cursor = int(row["last_ts_ms"]) if row is not None else max(self._runtime_started_ms, now_ms - 15 * 60_000)
+        with self._lock:
+            self._cursors[symbol] = cursor
+        return cursor
+
+    def _persist_cursor(self, symbol: str, cursor: int) -> None:
+        now = int(time.time() * 1000)
+        with self._connect() as conn:
+            conn.execute(
+                """INSERT INTO market_flow_cursor(venue,venue_symbol,last_ts_ms,updated_at_ms)
+                   VALUES(?,?,?,?)
+                   ON CONFLICT(venue,venue_symbol) DO UPDATE SET
+                     last_ts_ms=MAX(market_flow_cursor.last_ts_ms, excluded.last_ts_ms),
+                     updated_at_ms=excluded.updated_at_ms""",
+                (VENUE, symbol, int(cursor), now),
+            )
+        with self._lock:
+            self._cursors[symbol] = int(cursor)
+
     def _loop(self) -> None:
         while not self._stop.is_set():
             supplier = self._catalog_supplier
@@ -257,7 +293,10 @@ class MarketFlowEngine:
         if not symbol or not asset:
             return
         now = int(time.time() * 1000)
-        cursor = self._cursors.get(symbol, max(self._runtime_started_ms, now - 15 * 60_000))
+        cursor = self._cursor_for_symbol(symbol, now)
+        contract_size = _safe_float(market.get("contract_size"))
+        if contract_size is None or contract_size <= 0:
+            contract_size = 1.0
         with _EXCHANGE_LOCK:
             client = exchange()
             if not client.has.get("fetchTrades"):
@@ -270,14 +309,15 @@ class MarketFlowEngine:
         newest = cursor
         for trade in trades:
             ts = int(trade.get("timestamp") or 0)
-            if ts <= 0:
+            if ts < cursor or ts <= 0:
                 continue
             newest = max(newest, ts + 1)
             price = _safe_float(trade.get("price"))
             amount = _safe_float(trade.get("amount"))
             if price is None or amount is None or price <= 0 or amount <= 0:
                 continue
-            notional = price * amount
+            base_amount = amount * contract_size
+            notional = price * base_amount
             minute = ts - ts % 60_000
             bucket = rows.setdefault(minute, {"notional": 0.0, "buy": 0.0, "sell": 0.0, "count": 0, "price": price})
             bucket["notional"] = float(bucket["notional"] or 0) + notional
@@ -308,7 +348,8 @@ class MarketFlowEngine:
                     )
             with self._lock:
                 self._last_trade_ms = max(self._last_trade_ms, max(rows))
-        self._cursors[symbol] = newest
+        if newest > cursor:
+            self._persist_cursor(symbol, newest)
 
     def _refresh_spot_notional(self, catalog: list[dict[str, Any]]) -> None:
         bases = {str(row.get("base") or "").upper() for row in catalog if row.get("base")}
@@ -368,6 +409,26 @@ class MarketFlowEngine:
             bins[key] = bins.get(key, 0.0) + float(row["notional_usd"] or 0)
         return [value for _, value in sorted(bins.items()) if value > 0]
 
+    def _historical_session_samples(self, asset: str, name: str, current: SessionWindow, now_ms: int, days: int = 30) -> list[float]:
+        tz_name, start_hour, end_hour = SESSION_SPECS[name]
+        tz = ZoneInfo(tz_name)
+        current_start_local = datetime.fromtimestamp(current.start_ms / 1000.0, tz=timezone.utc).astimezone(tz)
+        elapsed_ms = max(60_000, min(current.end_ms, now_ms) - current.start_ms)
+        samples: list[float] = []
+        for offset in range(1, days + 1):
+            target_date = (current_start_local - timedelta(days=offset)).date()
+            start_local = datetime(target_date.year, target_date.month, target_date.day, start_hour, tzinfo=tz)
+            end_local = datetime(target_date.year, target_date.month, target_date.day, end_hour, tzinfo=tz)
+            start_ms = int(start_local.astimezone(timezone.utc).timestamp() * 1000)
+            full_end_ms = int(end_local.astimezone(timezone.utc).timestamp() * 1000)
+            end_ms = min(full_end_ms, start_ms + elapsed_ms)
+            observed = self._sum_flow(asset, start_ms, end_ms)
+            expected_minutes = max(1, (end_ms - start_ms) // 60_000)
+            coverage = int(observed["minute_count"]) / expected_minutes
+            if coverage >= 0.80 and float(observed["notional"]) > 0:
+                samples.append(float(observed["notional"]))
+        return samples
+
     @staticmethod
     def _history_change(history: deque[tuple[int, float]], now_ms: int, width_ms: int) -> float | None:
         if not history:
@@ -390,8 +451,10 @@ class MarketFlowEngine:
             coverage = min(100.0, 100.0 * int(observed["minute_count"]) / max(1, width // 60_000))
             windows[name] = {**observed, "coverage_pct": round(coverage, 1)}
         sessions: dict[str, dict[str, Any]] = {}
+        session_windows: dict[str, SessionWindow] = {}
         for name in SESSION_SPECS:
             session = session_window(name, now)
+            session_windows[name] = session
             end = min(now, session.end_ms)
             observed = self._sum_flow(asset, session.start_ms, end)
             expected_minutes = max(1, (end - session.start_ms) // 60_000)
@@ -405,8 +468,11 @@ class MarketFlowEngine:
             }
         chosen = sessions.get(selected_window) if selected_window in sessions else windows.get(selected_window, windows["8h"])
         width_ms = WINDOW_MS.get(selected_window, WINDOW_MS["8h"])
-        samples = self._historical_window_samples(asset, width_ms, now)
-        historical = samples[:-1] if len(samples) > 1 else []
+        if selected_window in SESSION_SPECS:
+            samples = self._historical_session_samples(asset, selected_window, session_windows[selected_window], now)
+        else:
+            samples = self._historical_window_samples(asset, width_ms, now)
+        historical = samples[:-1] if selected_window not in SESSION_SPECS and len(samples) > 1 else samples
         median = None
         if historical:
             ordered = sorted(historical)
