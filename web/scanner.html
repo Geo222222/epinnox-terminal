@@ -3,99 +3,30 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Scanner · Epinnox Terminal</title>
+  <title>Live Scanner · Epinnox Terminal</title>
   <link rel="icon" type="image/webp" href="/static/assets/epinnox-mark.webp" />
   <link rel="stylesheet" href="/static/product-pages.css" />
   <link rel="stylesheet" href="/static/scanner.css" />
   <link rel="stylesheet" href="/static/product-chrome.css" />
 </head>
 <body>
-  <div class="product-shell">
-    <header class="product-header">
-      <a class="product-brand" href="/"><img src="/static/assets/epinnox-mark.webp" alt="Epinnox" /><div><strong>EPINNOX TERMINAL</strong><span>Capital intelligence · Serving Benjamin</span></div></a>
-      <div class="product-health"><i></i><span>Deterministic research engine</span></div>
-      <div class="product-mode"><span class="product-badge live">Research online</span><span class="product-badge">Live execution locked</span></div>
-    </header>
-
-    <div class="product-layout">
-      <aside class="product-sidebar">
-        <div class="nav-label">PRIMARY</div>
-        <nav class="product-nav">
-          <a href="/"><span class="nav-icon">CH</span><span class="nav-copy"><strong>Terminal</strong><span>Chart & backtest</span></span></a>
-          <a class="active" href="/scanner"><span class="nav-icon">SC</span><span class="nav-copy"><strong>Scanner</strong><span>Opportunity discovery</span></span></a>
-          <a href="/sessions"><span class="nav-icon">PS</span><span class="nav-copy"><strong>Sessions</strong><span>Paper operations</span></span></a>
-          <a href="/research"><span class="nav-icon">EV</span><span class="nav-copy"><strong>Research</strong><span>Evidence library</span></span></a>
-          <a href="/strategies"><span class="nav-icon">ST</span><span class="nav-copy"><strong>Strategies</strong><span>Models & presets</span></span></a>
-        </nav>
-        <div class="sidebar-status"><strong>Scanner V2</strong><br />Chronological holdout + walk-forward. Research only; candidates never place orders.</div>
-      </aside>
-
-      <main class="product-main scanner-page">
-        <div class="page-head">
-          <div><span class="page-kicker">OPPORTUNITY DISCOVERY</span><h1>Scanner</h1><p>Search strategy × market × timeframe × target combinations, qualify them on walk-forward calibration and untouched chronological holdout evidence, then load a candidate directly into the Terminal for inspection.</p></div>
-          <div class="page-actions"><a class="ep-btn" href="/research">Evidence library</a><button id="runScan" class="ep-btn primary">Run scan</button></div>
-        </div>
-
-        <section id="scanSummary" class="kpi-grid scanner-kpis">
-          <div class="kpi"><span>Evaluated</span><b>—</b><small>candidate combinations</small></div>
-          <div class="kpi"><span>Qualified</span><b>—</b><small>passed OOS evidence gates</small></div>
-          <div class="kpi"><span>Fee floor long</span><b>—</b><small>modeled movement</small></div>
-          <div class="kpi"><span>Fee floor short</span><b>—</b><small>modeled movement</small></div>
-        </section>
-
-        <div class="scanner-workbench">
-          <aside class="panel scanner-query">
-            <div class="panel-head"><div class="panel-title"><h2>QUERY BUILDER</h2><span id="combinationCount">— evaluations</span></div></div>
-            <div class="panel-body scanner-query-body">
-              <label class="scan-field"><span>Objective</span><select id="scanObjective"><option>Capital Growth</option><option>Break-Even Throughput</option></select><small id="objectiveHelp">Prioritize holdout return, robustness, walk-forward stability and lower drawdown.</small></label>
-
-              <details class="scan-group" open><summary>Universe</summary><div class="scan-group-body">
-                <label class="scan-field"><span>Symbols</span><select id="scanSymbols" multiple size="6"></select></label>
-                <div class="scan-two"><label class="scan-field"><span>Timeframes</span><select id="scanTimeframes" multiple size="5"></select></label><label class="scan-field"><span>Strategies</span><select id="scanStrategies" multiple size="5"></select></label></div>
-                <label class="scan-field"><span>History</span><div class="scan-input-suffix"><input id="scanBars" type="number" min="600" max="10000" step="100" value="2000"/><em>bars</em></div></label>
-              </div></details>
-
-              <details class="scan-group" open><summary>Target & qualification</summary><div class="scan-group-body">
-                <label class="scan-field"><span>Net-profit buffers (%)</span><input id="scanTargets" value="0, 0.005, 0.01, 0.02, 0.04, 0.08" /></label>
-                <div id="feeFloorPreview" class="fee-floor-card">Fee floor —</div>
-                <div class="scan-two"><label class="scan-field"><span>WF windows</span><input id="scanWindows" type="number" value="4" min="2" max="8" /></label><label class="scan-field"><span>Min trades</span><input id="scanMinTrades" type="number" value="20" min="1" /></label></div>
-                <div class="scan-two"><label class="scan-field"><span>Min pass %</span><input id="scanPassRate" type="number" value="60" min="0" max="100"/></label><label class="scan-field"><span>Max DD %</span><input id="scanMaxDd" type="number" value="5" min="0.01" max="100" step="0.1"/></label></div>
-                <label class="scan-field"><span>Minimum full-sample expectancy</span><div class="scan-input-prefix"><em>$</em><input id="scanMinExpectancy" type="number" value="0" step="0.001"/></div></label>
-                <div class="fee-floor-card">OUT-OF-SAMPLE HOLDOUT</div>
-                <div class="scan-two"><label class="scan-field"><span>Holdout %</span><input id="scanHoldout" type="number" value="25" min="10" max="50" step="1"/></label><label class="scan-field"><span>Min OOS trades</span><input id="scanMinHoldoutTrades" type="number" value="5" min="1"/></label></div>
-                <label class="scan-field"><span>Minimum OOS expectancy</span><div class="scan-input-prefix"><em>$</em><input id="scanMinHoldoutExpectancy" type="number" value="0" step="0.001"/></div><small>Newest bars stay untouched by walk-forward calibration. Qualification must survive this segment.</small></label>
-              </div></details>
-
-              <details class="scan-group"><summary>Economics</summary><div class="scan-group-body">
-                <div class="scan-two"><label class="scan-field"><span>Balance</span><input id="scanBalance" type="number" value="100000" /></label><label class="scan-field"><span>Leverage</span><input id="scanLeverage" type="number" value="1" min="1" max="200"/></label></div>
-                <div class="scan-two"><label class="scan-field"><span>Allocation %</span><input id="scanAllocation" type="number" value="5" min="0.1" max="100" step="0.1"/></label><label class="scan-field"><span>Referral %</span><input id="scanReferral" type="number" value="30" min="0" max="100"/></label></div>
-                <div class="scan-three"><label class="scan-field"><span>Entry fee %</span><input id="scanEntryFee" type="number" value="0.05" step="0.001"/></label><label class="scan-field"><span>Exit fee %</span><input id="scanExitFee" type="number" value="0.05" step="0.001"/></label><label class="scan-field"><span>Extra %</span><input id="scanExtraCost" type="number" value="0" step="0.001"/></label></div>
-              </div></details>
-
-              <button class="scan-run" onclick="document.getElementById('runScan').click()">Run opportunity scan</button>
-              <div id="scanStatus" class="scan-status">Ready.</div>
-            </div>
-          </aside>
-
-          <section class="panel scanner-leaderboard">
-            <div class="panel-head leaderboard-head"><div class="panel-title"><h2>CANDIDATE LEADERBOARD</h2><span id="rankingPolicy"></span></div><label class="qualified-toggle"><input id="qualifiedOnly" type="checkbox" checked /> Qualified only</label></div>
-            <div class="scanner-table-wrap">
-              <table class="scanner-table">
-                <thead><tr><th>Rank</th><th>Status</th><th>Symbol</th><th>TF</th><th>Strategy</th><th>Buffer</th><th>Robust</th><th>OOS trades/day</th><th>OOS P&L</th><th>OOS Expectancy</th><th>OOS PF</th><th>WF pass</th><th>Full DD</th><th>Full P&L</th><th>Referral/day</th><th>Load</th></tr></thead>
-                <tbody id="scannerRows"><tr><td colspan="16" class="empty-cell">Run a scan to build a qualified candidate set.</td></tr></tbody>
-              </table>
-            </div>
-          </section>
-
-          <aside class="scanner-evidence section-stack">
-            <section class="panel"><div class="panel-head"><div class="panel-title"><h2>TOP EVIDENCE</h2><span>holdout first</span></div></div><div id="bestCandidate" class="best-candidate"><div class="empty-state"><div><strong>No candidate selected</strong><p>Run a scan. The strongest qualified candidate will appear here with chronological holdout and walk-forward evidence.</p></div></div></div></section>
-            <section class="panel recent-panel"><div class="panel-head"><div class="panel-title"><h2>RECENT SCANS</h2><span>durable experiments</span></div><button id="refreshRuns" class="ep-btn">Refresh</button></div><div id="recentRuns" class="recent-runs"><span class="muted">No persisted scans loaded.</span></div></section>
-          </aside>
-        </div>
-      </main>
-    </div>
-  </div>
-  <script src="/static/product-chrome.js" defer></script>
-  <script type="module" src="/static/scanner.js"></script>
-</body>
-</html>
+<div class="product-shell">
+<header class="product-header"><a class="product-brand" href="/"><img src="/static/assets/epinnox-mark.webp" alt="Epinnox"/><div><strong>EPINNOX TERMINAL</strong><span>Capital intelligence · Serving Benjamin</span></div></a><div class="product-health"><i></i><span id="scannerHeaderHealth">Continuous research runtime</span></div><div class="product-mode"><span id="scannerHeaderState" class="product-badge live">CONNECTING</span><span class="product-badge">Execution isolated</span></div></header>
+<div class="product-layout">
+<aside class="product-sidebar"><div class="nav-label">PRIMARY</div><nav class="product-nav"><a href="/"><span class="nav-icon">CH</span><span class="nav-copy"><strong>Terminal</strong><span>Chart & backtest</span></span></a><a class="active" href="/scanner"><span class="nav-icon">SC</span><span class="nav-copy"><strong>Live Scanner</strong><span>Continuous discovery</span></span></a><a href="/sessions"><span class="nav-icon">PS</span><span class="nav-copy"><strong>Sessions</strong><span>Paper operations</span></span></a><a href="/research"><span class="nav-icon">EV</span><span class="nav-copy"><strong>Research</strong><span>Evidence library</span></span></a><a href="/strategies"><span class="nav-icon">ST</span><span class="nav-copy"><strong>Strategies</strong><span>Models & presets</span></span></a></nav><div class="sidebar-status"><strong>LIVE SCANNER</strong><br/>Continuous evidence qualification. Research never places orders.</div></aside>
+<main class="product-main scanner-page">
+<div class="page-head live-scan-head"><div><span class="page-kicker">CONTINUOUS OPPORTUNITY DISCOVERY</span><div class="scan-title-line"><h1>Live Scanner</h1><span id="liveScannerBadge" class="live-runtime-badge"><i></i> CONNECTING</span></div><p>Continuously evaluate the HTX Universe under one durable mandate. New evidence is committed automatically; qualification remains fail-closed before Paper.</p></div><div class="page-actions"><label class="runtime-switch"><input id="scannerLiveToggle" type="checkbox"/><span></span>Scanner</label><label class="runtime-switch"><input id="universeLiveToggle" type="checkbox"/><span></span>Universe</label><button id="pauseAll" class="ep-btn">Pause all</button><a class="ep-btn" href="/research">Evidence library</a></div></div>
+<section class="runtime-strip"><div><span>STATE</span><b id="rtState">—</b></div><div><span>CYCLE</span><b id="rtCycle">—</b></div><div><span>ACTIVE BATCH</span><b id="rtBatch">—</b></div><div><span>MARKETS</span><b id="rtMarkets">—</b></div><div><span>COVERED</span><b id="rtCovered">—</b></div><div><span>UNSCANNED</span><b id="rtUnscanned">—</b></div><div><span>STALE</span><b id="rtStale">—</b></div><div><span>LAST COMMIT</span><b id="rtCommit">—</b></div></section>
+<div id="runtimeMessage" class="runtime-message">Connecting to live intelligence runtime…</div>
+<div class="scanner-workbench live-scanner-workbench">
+<aside class="panel scanner-query"><div class="panel-head"><div class="panel-title"><h2>SCANNER MANDATE</h2><span id="mandateState">Runtime policy</span></div><button id="editMandate" class="ep-btn compact">Edit</button></div><div class="panel-body scanner-query-body">
+<label class="scan-field"><span>Objective</span><select id="scanObjective" disabled><option>Capital Growth</option><option>Break-Even Throughput</option></select><small id="objectiveHelp">Prioritize holdout return, robustness, walk-forward stability and lower drawdown.</small></label>
+<details class="scan-group" open><summary>Research space</summary><div class="scan-group-body"><div class="scan-two"><label class="scan-field"><span>Timeframes</span><select id="scanTimeframes" multiple size="4" disabled></select></label><label class="scan-field"><span>Strategies</span><select id="scanStrategies" multiple size="6" disabled></select></label></div><label class="scan-field"><span>History</span><div class="scan-input-suffix"><input id="scanBars" type="number" min="600" max="10000" step="100" disabled/><em>bars</em></div></label><label class="scan-field"><span>Target buffers (%)</span><input id="scanTargets" disabled/></label></div></details>
+<details class="scan-group" open><summary>Qualification</summary><div class="scan-group-body"><div class="scan-two"><label class="scan-field"><span>WF windows</span><input id="scanWindows" type="number" min="2" max="8" disabled/></label><label class="scan-field"><span>Min trades</span><input id="scanMinTrades" type="number" min="1" disabled/></label></div><div class="scan-two"><label class="scan-field"><span>Min pass %</span><input id="scanPassRate" type="number" min="0" max="100" disabled/></label><label class="scan-field"><span>Max DD %</span><input id="scanMaxDd" type="number" min="0" max="100" disabled/></label></div><div class="scan-two"><label class="scan-field"><span>Holdout %</span><input id="scanHoldout" type="number" min="10" max="50" disabled/></label><label class="scan-field"><span>Min OOS trades</span><input id="scanMinHoldoutTrades" type="number" min="1" disabled/></label></div><label class="scan-field"><span>Minimum OOS expectancy</span><input id="scanMinHoldoutExpectancy" type="number" step=".001" disabled/></label></div></details>
+<details class="scan-group"><summary>Economics & scheduling</summary><div class="scan-group-body"><div class="scan-two"><label class="scan-field"><span>Balance</span><input id="scanBalance" type="number" disabled/></label><label class="scan-field"><span>Leverage</span><input id="scanLeverage" type="number" disabled/></label></div><div class="scan-two"><label class="scan-field"><span>Allocation %</span><input id="scanAllocation" type="number" disabled/></label><label class="scan-field"><span>Batch size</span><input id="scanBatch" type="number" min="1" max="6" disabled/></label></div><div class="scan-three"><label class="scan-field"><span>Entry fee %</span><input id="scanEntryFee" type="number" step=".001" disabled/></label><label class="scan-field"><span>Exit fee %</span><input id="scanExitFee" type="number" step=".001" disabled/></label><label class="scan-field"><span>Extra %</span><input id="scanExtraCost" type="number" step=".001" disabled/></label></div><label class="scan-field"><span>Evidence stale after</span><div class="scan-input-suffix"><input id="scanStale" type="number" min="60" disabled/><em>seconds</em></div></label></div></details>
+<div id="mandateReview" class="mandate-review">Mandate is live. Edit to stage changes; Apply commits them for the next admitted batch.</div><div class="mandate-actions"><button id="cancelMandate" class="ep-btn" hidden>Cancel</button><button id="applyMandate" class="ep-btn primary" hidden>Apply mandate</button></div></div></aside>
+<section class="panel scanner-leaderboard"><div class="panel-head leaderboard-head"><div class="panel-title"><h2>LIVE CANDIDATE LEADERBOARD</h2><span id="rankingPolicy">Canonical Universe evidence · automatically refreshed</span></div><label class="qualified-toggle"><input id="qualifiedOnly" type="checkbox" checked/> Qualified only</label></div><div class="scanner-table-wrap"><table class="scanner-table"><thead><tr><th>Rank</th><th>Status</th><th>Symbol</th><th>TF</th><th>Strategy</th><th>Target</th><th>Robust</th><th>OOS Trades/day</th><th>OOS P&amp;L</th><th>OOS Exp.</th><th>PF</th><th>WF Pass</th><th>DD</th><th>Coverage</th><th>Age</th><th>Inspect</th></tr></thead><tbody id="scannerRows"><tr><td colspan="16" class="empty-cell">Waiting for live evidence…</td></tr></tbody></table></div></section>
+<aside class="scanner-evidence section-stack"><section class="panel"><div class="panel-head"><div class="panel-title"><h2>OPERATIONS</h2><span>runtime truth</span></div></div><div id="operations" class="operations-grid"></div></section><section class="panel"><div class="panel-head"><div class="panel-title"><h2>TOP EVIDENCE</h2><span>holdout first</span></div></div><div id="bestCandidate" class="best-candidate"><span class="muted">Waiting for qualified evidence.</span></div></section><section class="panel recent-panel"><div class="panel-head"><div class="panel-title"><h2>RUNTIME EVENTS</h2><span>latest transitions</span></div></div><div id="runtimeEvents" class="recent-runs"></div></section></aside>
+</div></main></div></div>
+<script src="/static/product-chrome.js" defer></script><script type="module" src="/static/scanner.js"></script>
+</body></html>

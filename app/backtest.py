@@ -14,6 +14,7 @@ from .strategies import build_entry_model, entry_receipt
 
 @dataclass
 class Layer:
+    layer_id: str
     ts_ms: int
     price: float
     qty: float
@@ -23,12 +24,14 @@ class Layer:
 
 @dataclass
 class Position:
+    position_id: str
     side: str
     layers: list[Layer] = field(default_factory=list)
     entry_bar: int = 0
     mae_pct: float = 0.0
     mfe_pct: float = 0.0
     funding: float = 0.0
+    level_history: list[dict] = field(default_factory=list)
 
     @property
     def qty(self) -> float:
@@ -50,6 +53,11 @@ class Position:
 class Backtester:
     """Sequential OHLC replay with Pine-style entry timing and auditable exits."""
 
+    # Prepared scanner backtesters intentionally bypass this class' __init__.
+    # Keeping the sequence default on the class makes lifecycle identity safe
+    # for every subclass while normal instances still reset it per simulation.
+    position_sequence: int = 0
+
     def __init__(self, df: pd.DataFrame, req: BacktestRequest):
         self.df = df.reset_index(drop=True)
         self.req = req
@@ -63,16 +71,12 @@ class Backtester:
             req.confirmation_required,
             req.confirmation_window_bars,
         )
-        # The sequential simulator must preserve bar order, but it does not need
-        # pandas Series/row objects in the hot loop. Keep contiguous numeric
-        # arrays beside the DataFrame used by indicator/receipt rendering.
         self.ts = self.df["ts_ms"].to_numpy(dtype=np.int64, copy=False)
         self.high = self.df["high"].to_numpy(dtype=np.float64, copy=False)
         self.low = self.df["low"].to_numpy(dtype=np.float64, copy=False)
         self.close = self.df["close"].to_numpy(dtype=np.float64, copy=False)
         self.long_signal = self.logic["long"].to_numpy(dtype=bool, copy=False)
         self.short_signal = self.logic["short"].to_numpy(dtype=bool, copy=False)
-
         self.cash = req.starting_balance
         self.equity_peak = req.starting_balance
         self.max_drawdown = 0.0
@@ -81,6 +85,7 @@ class Backtester:
         self.markers: list[dict] = []
         self.equity_curve: list[dict] = []
         self.open_snapshot: dict | None = None
+        self.position_sequence = 0
 
     @property
     def parity_mode(self) -> bool:
@@ -100,6 +105,16 @@ class Backtester:
             desired_net_profit_pct=self.req.desired_net_profit_pct,
         )
         return levels.break_even, levels.target
+
+    def _record_levels(self, p: Position, ts_ms: int) -> None:
+        be, target = self._target(p)
+        p.level_history.append({
+            "ts_ms": int(ts_ms),
+            "layers": len(p.layers),
+            "avg_entry": p.avg,
+            "break_even": be,
+            "profit_target": target,
+        })
 
     def _liq(self, p: Position) -> float | None:
         if not self.liquidation_enabled:
@@ -129,9 +144,7 @@ class Backtester:
         return max(0.0, equity * self.req.leverage * (self.req.allocation_pct / 100.0))
 
     def _used_margin(self) -> float:
-        if not self.position:
-            return 0.0
-        return self.position.basis / self.req.leverage
+        return 0.0 if not self.position else self.position.basis / self.req.leverage
 
     def _open_or_add(self, i: int, side: str, price: float) -> None:
         if self.position and self.position.side != side:
@@ -148,20 +161,32 @@ class Backtester:
             return
         self.cash -= fee
         if not self.position:
-            self.position = Position(side=side, entry_bar=i)
+            self.position_sequence += 1
+            self.position = Position(position_id=f"bt-pos-{self.position_sequence}", side=side, entry_bar=i)
         receipt = entry_receipt(self.logic, i, side)
-        self.position.layers.append(Layer(int(self.ts[i]), price, qty, fee, receipt))
-        matched = sum(1 for x in receipt if x["matched"])
-        self.markers.append(
-            {
-                "ts_ms": int(self.ts[i]),
-                "price": price,
-                "kind": "entry",
-                "side": side,
-                "text": f"{side.upper()} #{len(self.position.layers)} · {matched}/{len(receipt)}",
-                "receipt": receipt,
-            }
+        layer_no = len(self.position.layers) + 1
+        layer = Layer(
+            layer_id=f"{self.position.position_id}-L{layer_no}",
+            ts_ms=int(self.ts[i]),
+            price=price,
+            qty=qty,
+            fee=fee,
+            receipt=receipt,
         )
+        self.position.layers.append(layer)
+        self._record_levels(self.position, int(self.ts[i]))
+        matched = sum(1 for x in receipt if x["matched"])
+        self.markers.append({
+            "position_id": self.position.position_id,
+            "layer_id": layer.layer_id,
+            "layer": layer_no,
+            "ts_ms": int(self.ts[i]),
+            "price": price,
+            "kind": "entry",
+            "side": side,
+            "text": f"{side.upper()} L{layer_no} · {matched}/{len(receipt)}",
+            "receipt": receipt,
+        })
 
     def _mark_equity(self, price: float) -> float:
         if not self.position:
@@ -170,10 +195,22 @@ class Backtester:
         gross = (price - p.avg) * p.qty if p.side == "long" else (p.avg - price) * p.qty
         return self.cash + gross - p.funding
 
+    @staticmethod
+    def _public_layers(p: Position) -> list[dict]:
+        return [{
+            "layer_id": layer.layer_id,
+            "ts_ms": layer.ts_ms,
+            "price": layer.price,
+            "qty": layer.qty,
+            "fee": layer.fee,
+            "receipt": layer.receipt,
+        } for layer in p.layers]
+
     def _close(self, i: int, price: float, reason: str, exit_receipt: dict | None = None) -> None:
         p = self.position
         if not p:
             return
+        break_even, target = self._target(p)
         exit_notional = p.qty * price
         exit_fee = exit_notional * (self.req.exit_fee_pct / 100.0)
         gross = (price - p.avg) * p.qty if p.side == "long" else (p.avg - price) * p.qty
@@ -183,43 +220,45 @@ class Backtester:
         referral = total_fee * self.req.referral_share_pct / 100.0
         bars = i - p.entry_bar
         receipts = [layer.receipt for layer in p.layers]
-        self.closed.append(
-            {
-                "trade": len(self.closed) + 1,
-                "side": p.side,
-                "entry_ts_ms": p.layers[0].ts_ms,
-                "exit_ts_ms": int(self.ts[i]),
-                "entry_price": p.avg,
-                "exit_price": price,
-                "qty": p.qty,
-                "layers": len(p.layers),
-                "leverage": self.req.leverage,
-                "margin": p.basis / self.req.leverage,
-                "entry_fee": p.entry_fees,
-                "exit_fee": exit_fee,
-                "total_fee": total_fee,
-                "referral_commission": referral,
-                "funding": p.funding,
-                "gross_pnl": gross,
-                "net_pnl": net,
-                "mae_pct": p.mae_pct,
-                "mfe_pct": p.mfe_pct,
-                "bars_held": bars,
-                "exit_reason": reason,
-                "exit_receipt": exit_receipt,
-                "entry_confirmation": receipts[0] if receipts else [],
-                "layer_confirmations": receipts,
-            }
-        )
-        self.markers.append(
-            {
-                "ts_ms": int(self.ts[i]),
-                "price": price,
-                "kind": "exit",
-                "side": p.side,
-                "text": f"EXIT {reason}",
-            }
-        )
+        self.closed.append({
+            "trade": len(self.closed) + 1,
+            "position_id": p.position_id,
+            "side": p.side,
+            "entry_ts_ms": p.layers[0].ts_ms,
+            "exit_ts_ms": int(self.ts[i]),
+            "entry_price": p.avg,
+            "break_even": break_even,
+            "profit_target": target,
+            "exit_price": price,
+            "qty": p.qty,
+            "layers": len(p.layers),
+            "layer_ledger": self._public_layers(p),
+            "level_history": list(p.level_history),
+            "leverage": self.req.leverage,
+            "margin": p.basis / self.req.leverage,
+            "entry_fee": p.entry_fees,
+            "exit_fee": exit_fee,
+            "total_fee": total_fee,
+            "referral_commission": referral,
+            "funding": p.funding,
+            "gross_pnl": gross,
+            "net_pnl": net,
+            "mae_pct": p.mae_pct,
+            "mfe_pct": p.mfe_pct,
+            "bars_held": bars,
+            "exit_reason": reason,
+            "exit_receipt": exit_receipt,
+            "entry_confirmation": receipts[0] if receipts else [],
+            "layer_confirmations": receipts,
+        })
+        self.markers.append({
+            "position_id": p.position_id,
+            "ts_ms": int(self.ts[i]),
+            "price": price,
+            "kind": "exit",
+            "side": p.side,
+            "text": f"EXIT {reason}",
+        })
         self.position = None
 
     def run(self) -> dict:
@@ -233,6 +272,7 @@ class Backtester:
             close = float(self.close[i])
             high = float(self.high[i])
             low = float(self.low[i])
+            exited_this_bar = False
 
             if self.position:
                 p = self.position
@@ -244,33 +284,34 @@ class Backtester:
                 _, target = self._target(p)
                 liq = self._liq(p)
                 liquidated = bool(liq is not None and ((p.side == "long" and low <= liq) or (p.side == "short" and high >= liq)))
-
                 stop_hit = False
                 stop_price = None
                 if self.req.stop_loss_pct:
                     x = self.req.stop_loss_pct / 100.0
                     stop_price = p.avg * (1 - x) if p.side == "long" else p.avg * (1 + x)
                     stop_hit = (p.side == "long" and low <= stop_price) or (p.side == "short" and high >= stop_price)
-
                 target_hit = (p.side == "long" and high >= target) or (p.side == "short" and low <= target)
                 timed_out = self.req.max_bars_in_trade is not None and i - p.entry_bar >= self.req.max_bars_in_trade
 
                 if liquidated and liq is not None:
-                    self._close(i, liq, "liquidation", self._liquidation_receipt(p, high, low, liq))
+                    self._close(i, liq, "liquidation", self._liquidation_receipt(p, high, low, liq));exited_this_bar = True
                 elif stop_hit and stop_price is not None:
-                    self._close(i, stop_price, "stop")
+                    self._close(i, stop_price, "stop");exited_this_bar = True
                 elif target_hit:
-                    self._close(i, target, "target")
+                    self._close(i, target, "target");exited_this_bar = True
                 elif timed_out:
-                    self._close(i, close, "timeout")
+                    self._close(i, close, "timeout");exited_this_bar = True
 
-            if self.position is None:
-                if allow_long and self.long_signal[i]:
-                    self._open_or_add(i, "long", close)
-                elif allow_short and self.short_signal[i]:
-                    self._open_or_add(i, "short", close)
-            else:
-                if self.position.side == "long" and allow_long and self.long_signal[i]:
+            # Intrabar exits and close-time entries are different phases of the
+            # candle. Once a position exits on this bar, the next position may
+            # only be admitted from a later bar; this prevents phantom re-entry.
+            if not exited_this_bar:
+                if self.position is None:
+                    if allow_long and self.long_signal[i]:
+                        self._open_or_add(i, "long", close)
+                    elif allow_short and self.short_signal[i]:
+                        self._open_or_add(i, "short", close)
+                elif self.position.side == "long" and allow_long and self.long_signal[i]:
                     self._open_or_add(i, "long", close)
                 elif self.position.side == "short" and allow_short and self.short_signal[i]:
                     self._open_or_add(i, "short", close)
@@ -286,10 +327,14 @@ class Backtester:
             be, target = self._target(p)
             last = float(self.close[-1])
             self.open_snapshot = {
+                "position_id": p.position_id,
                 "side": p.side,
+                "entry_ts_ms": p.layers[0].ts_ms,
                 "avg_entry": p.avg,
                 "qty": p.qty,
                 "layers": len(p.layers),
+                "layer_ledger": self._public_layers(p),
+                "level_history": list(p.level_history),
                 "break_even": be,
                 "profit_target": target,
                 "liquidation": self._liq(p),
@@ -318,7 +363,6 @@ class Backtester:
         net_closed = sum(t["net_pnl"] for t in self.closed)
         last_eq = self.equity_curve[-1]["equity"] if self.equity_curve else self.req.starting_balance
         profit_factor = gross_win / gross_loss if gross_loss > 0 else None
-
         metrics = {
             "closed_trades": len(self.closed),
             "net_pnl_closed": net_closed,
@@ -338,8 +382,7 @@ class Backtester:
 
         def serial(series: pd.Series) -> list[dict]:
             values = series.to_numpy(copy=False)
-            mask = pd.notna(values)
-            indexes = np.flatnonzero(mask)
+            indexes = np.flatnonzero(pd.notna(values))
             return [{"ts_ms": int(self.ts[i]), "value": float(values[i])} for i in indexes]
 
         model_label = self.req.strategy if self.req.confirmation_policy == "Single" else f"{self.req.strategy} + {' + '.join(self.req.confirmations)}"
@@ -349,16 +392,15 @@ class Backtester:
             "strategy": self.req.strategy,
             "backtest_profile": self.req.backtest_profile,
             "backtest_window": {
-                "start_ts_ms": int(self.ts[0]),
-                "end_ts_ms": int(self.ts[-1]),
-                "candles": len(self.ts),
+                "start_ts_ms": int(self.ts[0]) if len(self.ts) else None,
+                "end_ts_ms": int(self.ts[-1]) if len(self.ts) else None,
+                "candles": int(len(self.ts)),
             },
             "simulation": {
                 "liquidation_enabled": self.liquidation_enabled,
-                "liquidation_model": "Simplified isolated estimate" if self.liquidation_enabled else "Disabled for TradingView parity",
-                "funding_bps_per_8h_effective": 0.0 if self.parity_mode else self.req.funding_bps_per_8h,
+                "liquidation_model": "Simplified isolated estimate" if self.liquidation_enabled else "disabled",
                 "entry_timing": "signal evaluated on bar close; entry filled at that close",
-                "exit_timing": "existing positions evaluate candle high/low before new close entries",
+                "exit_timing": "existing positions evaluate candle high/low before new close entries; an exit blocks same-bar re-entry",
             },
             "entry_model": {
                 "label": model_label,

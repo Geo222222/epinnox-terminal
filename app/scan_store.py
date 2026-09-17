@@ -77,6 +77,15 @@ class ScanStore:
             for row in rows
         ]
 
+    def recent_results(self, limit: int = 100) -> list[dict[str, Any]]:
+        """Return recent durable scan payloads for live-runtime recovery."""
+        with self._lock, self._connect() as conn:
+            rows = conn.execute(
+                "SELECT result_json FROM opportunity_scans ORDER BY created_at_ms DESC LIMIT ?",
+                (max(1, min(limit, 500)),),
+            ).fetchall()
+        return [json.loads(row["result_json"]) for row in rows]
+
     def get(self, scan_id: str) -> dict[str, Any] | None:
         with self._lock, self._connect() as conn:
             row = conn.execute("SELECT result_json FROM opportunity_scans WHERE scan_id=?", (scan_id,)).fetchone()
