@@ -8,33 +8,40 @@ def read(name: str) -> str:
     return (WEB / name).read_text(encoding="utf-8")
 
 
-def test_v4_qa_asset_is_loaded_after_universe_surface():
+def test_canonical_home_surfaces_own_their_visual_contracts():
+    index = read("index.html")
     shell = read("v4-shell.js")
-    assert "/static/v4-universe.css" in shell
-    assert "/static/v4-visual-qa.css" in shell
-    assert shell.index("/static/v4-visual-qa.css") > shell.index("/static/v4-universe.css")
-
-
-def test_v4_qa_covers_reference_viewports_and_surfaces():
-    css = read("v4-visual-qa.css")
-    assert "min-width:1700px" in css
-    assert "min-width:1360px" in css
-    assert "min-width:981px" in css
-    for selector in [
-        ".chart-workspace",
-        ".scanner-workspace-v4",
-        ".universe-workspace",
-        ".bottom-dock",
-        ".inspector",
-    ]:
-        assert selector in css
-    assert "prefers-reduced-motion" in css
-
     universe_css = read("v4-universe.css")
+    chart_css = read("v5-chart-workspace.css")
+
+    assert "/static/v4-universe.css" in index
+    assert "/static/v5-chart-workspace.css" in index
+    assert "v4-visual-qa.css" not in index
+    assert "v4-visual-qa" not in shell
     assert ".u-body" in universe_css
     assert ".u-table-shell" in universe_css
     assert ".u-inspector" in universe_css
     assert "prefers-reduced-motion" in universe_css
+    assert "prefers-reduced-motion" in chart_css
+
+
+def test_obsolete_home_chrome_assets_are_gone():
+    obsolete = [
+        "v4-command-center.css",
+        "v4-command-center.js",
+        "v4-scanner-v2.js",
+        "v4-final-chrome.css",
+        "v4-final-chrome.js",
+        "v4-sitewide.css",
+        "v4-sitewide.js",
+        "v4-visual-qa.css",
+        "v4-universe-refine.css",
+        "v4-universe-refine.js",
+        "v4-universe-safety.css",
+        "v4-universe-safety.js",
+    ]
+    for name in obsolete:
+        assert not (WEB / name).exists(), name
 
 
 def test_standalone_product_pages_share_visual_qa():
