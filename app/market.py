@@ -238,7 +238,7 @@ def _eligible_markets() -> tuple[dict[str, dict[str, Any]], list[str]]:
             eligible[sym] = market
     preferred = ["ETH/USDT:USDT", "BTC/USDT:USDT", "DOGE/USDT:USDT", "SOL/USDT:USDT", "XRP/USDT:USDT"]
     ordered = [s for s in preferred if s in eligible] + sorted(s for s in eligible if s not in preferred)
-    return eligible, ordered[:250]
+    return eligible, ordered
 
 
 def symbols() -> list[str]:
@@ -246,11 +246,12 @@ def symbols() -> list[str]:
 
 
 def market_catalog() -> list[dict[str, Any]]:
-    """Return the live HTX linear-USDT swap catalog in one bounded bulk request.
+    """Return the complete active HTX linear-USDT swap catalog in one bulk request.
 
     The live Universe consumes this catalog directly. Missing ticker fields are
     represented as ``None`` rather than fabricated values so degraded HTX data
-    remains visible and fail-closed.
+    remains visible and fail-closed. No arbitrary top-N cap is applied to the
+    eligible venue catalog.
     """
     eligible, ordered = _eligible_markets()
     with _EXCHANGE_LOCK:
