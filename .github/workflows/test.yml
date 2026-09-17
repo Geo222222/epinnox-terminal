@@ -69,6 +69,11 @@ jobs:
           grep -q 'LIVE CANDIDATE LEADERBOARD' web/scanner.html
           grep -q 'market_flow' app/live_intelligence.py
           grep -q 'market_flow_minute' app/market_flow.py
+          grep -q '<body class="v5-chart-active">' web/index.html
+          grep -q 'id="openStrategyTab"' web/index.html
+          grep -q 'href="/sessions"' web/index.html
+          grep -q 'href="/research"' web/index.html
+          grep -q 'href="/strategies"' web/index.html
           grep -q '/static/v4-workbench.css' web/index.html
           grep -q '/static/v4-universe.css' web/index.html
           grep -q '/static/v5-chart-workspace.css' web/index.html
@@ -76,13 +81,18 @@ jobs:
           grep -q '/static/v4-universe.js' web/index.html
           grep -q '/static/v5-chart-workspace.js' web/index.html
           ! grep -q 'createElement.*script' web/v4-shell.js
-          ! grep -q 'v4-command-center' web/v4-shell.js
-          ! grep -q 'v4-scanner-v2' web/v4-shell.js
-          ! grep -q 'v4-final-chrome' web/v4-shell.js
-          ! grep -q 'v4-sitewide' web/v4-shell.js
-          ! grep -q 'v4-visual-qa' web/v4-shell.js
+          ! grep -q 'insertAdjacentHTML' web/v4-shell.js
+          ! grep -q 'railStrategy' web/v4-shell.js
+          ! grep -q 'scanner-active' web/v5-chart-workspace.js
+          ! grep -q 'railScanner' web/v5-chart-workspace.js
+          ! grep -q 'installStyle' web/v5-chart-workspace.js
+          ! grep -q 'modalSnapshot' web/v5-chart-workspace.js
+          ! grep -q 'snapshotStrategy' web/v5-chart-workspace.js
+          ! grep -q 'strategyFields' web/v5-chart-workspace.js
+          ! grep -q 'bindLegacyStrategyEntrypoints' web/v5-chart-workspace.js
           ! grep -q '/api/scanner/run' web/scanner.js
           ! grep -q 'Run opportunity scan' web/scanner.html
+          ! grep -R -E 'v4-command-center|v4-scanner-v2|v4-final-chrome|v4-sitewide|v4-visual-qa|v4-universe-refine|v4-universe-safety' README.md docs web
       - name: Runtime HTTP smoke test
         run: python scripts/runtime_smoke.py
       - name: Upload pytest report
