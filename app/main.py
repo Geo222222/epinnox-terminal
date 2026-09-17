@@ -215,8 +215,11 @@ def live_status():
 
 
 @app.get("/api/live/universe")
-def live_universe():
-    return live_intelligence.universe_snapshot()
+def live_universe(window: str = Query("8h")):
+    try:
+        return live_intelligence.universe_snapshot(window)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @app.post("/api/live/control")
