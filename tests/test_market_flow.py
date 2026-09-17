@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
+import time
 
 from app.market_flow import (
+    MarketFlowEngine,
     flow_price_state,
     oi_context,
     participation_state,
@@ -67,3 +69,45 @@ def test_london_and_asia_sessions_are_explicit_not_browser_local():
     assert asia.start_ms == ms("2026-09-16T01:00:00+00:00")
     assert asia.end_ms == ms("2026-09-16T09:00:00+00:00")
     assert asia.active is True
+
+
+def test_perpetual_notional_uses_contract_size_and_cursor_survives_restart(tmp_path, monkeypatch):
+    now = int(time.time() * 1000)
+
+    class FakeExchange:
+        has = {"fetchTrades": True}
+
+        def fetch_trades(self, symbol, since=None, limit=None):
+            return [{
+                "timestamp": now,
+                "price": 10_000.0,
+                "amount": 2.0,
+                "side": "buy",
+            }]
+
+    fake = FakeExchange()
+    monkeypatch.setattr("app.market_flow.exchange", lambda: fake)
+    market = {
+        "symbol": "BTC/USDT:USDT",
+        "base": "BTC",
+        "contract_size": 0.001,
+    }
+
+    path = tmp_path / "flow.db"
+    first = MarketFlowEngine(path)
+    first._runtime_started_ms = now - 60_000
+    first._collect_recent_trades(market)
+
+    minute = now - now % 60_000
+    observed = first._sum_flow("BTC", minute, minute + 60_000)
+    assert observed["notional"] == 20.0  # 10,000 × 2 contracts × 0.001 BTC/contract
+    assert observed["buy_notional"] == 20.0
+    assert observed["trade_count"] == 1
+
+    # A new process/runtime loads the persisted cursor. Even if an exchange
+    # repeats the overlap trade, it must not be added to the minute twice.
+    second = MarketFlowEngine(path)
+    second._collect_recent_trades(market)
+    observed_after_restart = second._sum_flow("BTC", minute, minute + 60_000)
+    assert observed_after_restart["notional"] == 20.0
+    assert observed_after_restart["trade_count"] == 1
