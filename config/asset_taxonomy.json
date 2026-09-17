@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "taxonomy_id": "epinnox-htx-usdt-v1",
+  "description": "Deterministic Epinnox market-purpose taxonomy for HTX linear USDT swaps. Unknown assets remain UNCLASSIFIED rather than being guessed.",
+  "categories": {
+    "MAJORS": ["BTC", "ETH"],
+    "L1 / SMART CONTRACTS": ["SOL", "BNB", "ADA", "AVAX", "SUI", "APT", "SEI", "TON", "NEAR", "DOT", "ATOM", "TRX", "ETC", "ALGO", "HBAR", "FTM", "EGLD", "KAS", "ICP"],
+    "L2 / SCALING": ["ARB", "OP", "STRK", "MANTA", "METIS", "ZK", "MATIC", "POL"],
+    "DEFI / DEX": ["UNI", "AAVE", "CRV", "SUSHI", "COMP", "MKR", "SNX", "DYDX", "GMX", "1INCH", "LDO", "RUNE", "JUP", "PENDLE", "ENA"],
+    "ORACLES / DATA": ["LINK", "PYTH", "BAND", "API3", "GRT"],
+    "INFRA / INTEROP": ["FIL", "AR", "TIA", "W", "AXL", "QNT", "STX", "RPL", "ANKR", "IOTA"],
+    "AI / COMPUTE": ["FET", "TAO", "RNDR", "RENDER", "WLD", "AGIX", "OCEAN", "ARKM", "AI", "IO"],
+    "RWA / PAYMENTS": ["XRP", "XLM", "ONDO", "OM", "MKR", "CRO", "LTC", "BCH", "DASH"],
+    "GAMING / METAVERSE": ["IMX", "GALA", "SAND", "MANA", "AXS", "APE", "ENJ", "PIXEL", "RON", "BEAM"],
+    "MEMES": ["DOGE", "SHIB", "PEPE", "BONK", "WIF", "FLOKI", "BOME", "MEME", "BRETT", "TURBO", "NEIRO", "POPCAT", "MOG"],
+    "EXCHANGE / ECOSYSTEM": ["BNB", "OKB", "HT", "GT", "LEO", "KCS"],
+    "PRIVACY / STORAGE": ["XMR", "ZEC", "FIL", "AR", "SC", "STORJ"]
+  }
+}
