@@ -71,6 +71,10 @@ def assert_json_contract(path: str, checks: dict[str, object]) -> None:
 def run() -> None:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT)
+    # The smoke gate validates contracts, not external HTX reachability. Keeping
+    # live ingestion disabled prevents a CI network condition from masquerading
+    # as an application-runtime failure.
+    env["EPINNOX_DISABLE_LIVE_INTELLIGENCE"] = "1"
     command = [
         sys.executable,
         "-m",
@@ -97,10 +101,7 @@ def run() -> None:
 
         assert_json_contract(
             "/api/health",
-            {
-                "ok": True,
-                "service": "epinnox-terminal",
-            },
+            {"ok": True, "service": "epinnox-terminal"},
         )
         assert_json_contract(
             "/api/config",
@@ -109,6 +110,19 @@ def run() -> None:
                 "execution.live_order_routing_armed": False,
                 "execution.multi_session": True,
             },
+        )
+        assert_json_contract(
+            "/api/live/status",
+            {
+                "schema_version": 2,
+                "started": False,
+                "controls.universe_enabled": True,
+                "controls.scanner_enabled": True,
+            },
+        )
+        assert_json_contract(
+            "/api/live/universe",
+            {"schema_version": 2},
         )
 
         for path, marker in {
@@ -121,9 +135,9 @@ def run() -> None:
             assert_contains(path, marker)
 
         for path, marker in {
-            "/static/v4-shell.js": "v4-universe-safety.js",
-            "/static/v4-universe-refine.js": "Cross-scan market evidence",
-            "/static/v4-universe-safety.js": "leaveUniverseForMode",
+            "/static/v4-shell.js": "/static/v4-universe.js",
+            "/static/v4-universe.js": "LIVE UNIVERSE",
+            "/static/v4-universe.css": "prefers-reduced-motion",
             "/static/v4-visual-qa.css": "prefers-reduced-motion",
             "/static/product-visual-qa.css": "prefers-reduced-motion",
             "/static/research.js": "epinnox.universe.saved.v1",
