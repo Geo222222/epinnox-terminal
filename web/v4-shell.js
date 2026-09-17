@@ -53,35 +53,10 @@
     polish.defer=true;
     document.body.appendChild(polish);
   }
-  // Universe research assets load after global chrome so research-only semantics
-  // and safety gates own the final behavior/cascade while this surface is active.
-  if(!document.querySelector('link[href="/static/v4-universe-refine.css"]')){
-    const universeRefineStyle=document.createElement('link');
-    universeRefineStyle.rel='stylesheet';universeRefineStyle.href='/static/v4-universe-refine.css';document.head.appendChild(universeRefineStyle);
-  }
-  if(!document.querySelector('link[href="/static/v4-universe-safety.css"]')){
-    const universeSafetyStyle=document.createElement('link');
-    universeSafetyStyle.rel='stylesheet';universeSafetyStyle.href='/static/v4-universe-safety.css';document.head.appendChild(universeSafetyStyle);
-  }
-  if(!document.querySelector('script[src="/static/v4-universe-refine.js"]')){
-    const universeRefine=document.createElement('script');
-    universeRefine.src='/static/v4-universe-refine.js';
-    universeRefine.defer=true;
-    document.body.appendChild(universeRefine);
-  }
-  if(!document.querySelector('script[src="/static/v4-universe-safety.js"]')){
-    const universeSafety=document.createElement('script');
-    universeSafety.src='/static/v4-universe-safety.js';
-    universeSafety.defer=true;
-    document.body.appendChild(universeSafety);
-  }
-  // Pure layout/density corrections come last and do not alter research/execution semantics.
   if(!document.querySelector('link[href="/static/v4-visual-qa.css"]')){
     const qaStyle=document.createElement('link');
     qaStyle.rel='stylesheet';qaStyle.href='/static/v4-visual-qa.css';document.head.appendChild(qaStyle);
   }
-  // V5 owns the Chart surface only: chart-first layout, compact SVG tooling,
-  // quick primary-strategy control, bottom-dock position context, and modal settings.
   if(!document.querySelector('link[href="/static/v5-chart-workspace.css"]')){
     const chartStyle=document.createElement('link');chartStyle.rel='stylesheet';chartStyle.href='/static/v5-chart-workspace.css';document.head.appendChild(chartStyle);
   }
