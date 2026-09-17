@@ -7,6 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: ${{ github.workspace }}
+      EPINNOX_DISABLE_LIVE_INTELLIGENCE: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -26,90 +27,82 @@ jobs:
           node --check web/product-chrome.js
           node --check web/v4-shell.js
           node --check web/v4-workbench.js
-          node --check web/v4-command-center.js
-          node --check web/v4-scanner-v2.js
           node --check web/v4-universe.js
-          node --check web/v4-final-chrome.js
-          node --check web/v4-sitewide.js
-          node --check web/v4-universe-refine.js
-          node --check web/v4-universe-safety.js
           node --check web/v5-chart-workspace.js
-      - name: Verify workstation assets
+          node --check web/position-lifecycle.js
+      - name: Verify canonical runtime and shell contracts
         run: |
+          test -s app/live_intelligence.py
+          test -s app/market_flow.py
+          test -s config/asset_taxonomy.json
           test -s scripts/runtime_smoke.py
+          test -s scripts/visual_shell_smoke.py
           test -s docs/RUNTIME_VALIDATION.md
-          test -s docs/TRADINGVIEW_PARITY.md
-          test -s docs/SCANNER_V2.md
-          test -s web/workstation.css
-          test -s web/v4-shell.css
-          test -s web/v4-workbench.css
-          test -s web/v4-workbench.js
-          test -s web/v4-command-center.css
-          test -s web/v4-command-center.js
-          test -s web/v4-scanner-v2.js
-          test -s web/v4-universe.css
-          test -s web/v4-universe.js
-          test -s web/v4-final-chrome.css
-          test -s web/v4-final-chrome.js
-          test -s web/v4-sitewide.css
-          test -s web/v4-sitewide.js
-          test -s web/v4-universe-refine.css
-          test -s web/v4-universe-refine.js
-          test -s web/v4-universe-safety.css
-          test -s web/v4-universe-safety.js
-          test -s web/v4-visual-qa.css
-          test -s web/v5-chart-workspace.css
-          test -s web/v5-chart-workspace.js
-          test -s web/product-pages.css
           test -s web/product-chrome.css
           test -s web/product-chrome.js
-          test -s web/product-visual-qa.css
+          test -s web/v4-universe.css
+          test -s web/v4-universe.js
+          test -s web/v5-chart-workspace.css
+          test -s web/v5-chart-workspace.js
+          test -s web/position-lifecycle.js
           test -s web/scanner.html
-          test -s web/sessions.html
-          test -s web/research.html
-          test -s web/strategies.html
-          grep -q "execution/accounts" app/main.py
-          grep -q 'def sessions_page' app/main.py
-          grep -q 'def research_page' app/main.py
-          grep -q 'def strategies_page' app/main.py
-          grep -q "drawingToolbar" web/app.js
-          grep -q 'id="sessionRail"' web/index.html
-          grep -q 'id="accountSelector"' web/index.html
-          grep -q 'Manage presets' web/index.html
-          grep -q 'SCANNER' web/index.html
-          grep -q 'v4-workbench.js' web/v4-shell.js
-          grep -q 'v4-command-center.js' web/v4-shell.js
-          grep -q 'v4-scanner-v2.js' web/v4-shell.js
-          grep -q 'v4-universe.js' web/v4-shell.js
-          grep -q 'v4-final-chrome.js' web/v4-shell.js
-          grep -q 'v4-sitewide.js' web/v4-shell.js
-          grep -q 'v4-universe-refine.js' web/v4-shell.js
-          grep -q 'v4-universe-safety.css' web/v4-shell.js
-          grep -q 'v4-universe-safety.js' web/v4-shell.js
-          grep -q 'v4-visual-qa.css' web/v4-shell.js
-          grep -q 'v5-chart-workspace.js' web/v4-shell.js
-          grep -q 'v5-chart-workspace.css' web/v4-shell.js
-          grep -q 'product-visual-qa.css' web/scanner.css
-          grep -q 'product-visual-qa.css' web/sessions.css
-          grep -q 'product-visual-qa.css' web/research.css
-          grep -q 'product-visual-qa.css' web/strategies.css
-          grep -q 'Cross-scan market evidence' web/v4-universe-refine.js
-          grep -q 'Paper qualification is blocked' web/v4-universe-refine.js
-          grep -q 'WHY THIS CANDIDATE FAILED' web/v4-universe-safety.js
-          grep -q 'leaveUniverseForMode' web/v4-universe-safety.js
-          grep -q 'epinnox.universe.saved.v1' web/research.js
-          grep -q 'UNIVERSE CANDIDATES' web/research.html
-          grep -q 'href="/sessions"' web/v4-shell.js
-          grep -q 'product-chrome.js' web/scanner.html
-          grep -q 'product-chrome.js' web/sessions.html
-          grep -q 'product-chrome.js' web/research.html
-          grep -q 'product-chrome.js' web/strategies.html
-          grep -q 'CANDIDATE LEADERBOARD' web/scanner.html
-          grep -q 'SESSION REGISTRY' web/sessions.html
-          grep -q 'PINNED BACKTESTS' web/research.html
-          grep -q 'MODEL CATALOG' web/strategies.html
-          grep -q 'chronological holdout' web/scanner.html
-          grep -q 'PARITY_SEMANTICS_VERSION' app/indicators.py
+          test -s web/scanner.js
+          test ! -e web/canonical-shell.css
+          test ! -e web/v4-command-center.css
+          test ! -e web/v4-command-center.js
+          test ! -e web/v4-scanner-v2.js
+          test ! -e web/v4-final-chrome.css
+          test ! -e web/v4-final-chrome.js
+          test ! -e web/v4-sitewide.css
+          test ! -e web/v4-sitewide.js
+          test ! -e web/v4-visual-qa.css
+          test ! -e web/v4-universe-refine.css
+          test ! -e web/v4-universe-refine.js
+          test ! -e web/v4-universe-safety.css
+          test ! -e web/v4-universe-safety.js
+          grep -q '__EPINNOX_CANONICAL_SHELL__' web/product-chrome.js
+          grep -q 'ep-global-header' web/product-chrome.js
+          grep -q 'ep-global-nav' web/product-chrome.js
+          grep -q 'ep-global-footer' web/product-chrome.js
+          grep -q 'ep-primary-nav rail-primary' web/product-chrome.js
+          grep -q "\['Universe','/?universe=1','Market intelligence'" web/product-chrome.js
+          grep -q '/api/live/universe' web/v4-universe.js
+          grep -q '/api/live/status' web/scanner.js
+          grep -q '/api/live/universe' web/scanner.js
+          grep -q '/api/live/control' web/scanner.js
+          grep -q '/api/live/mandate' web/scanner.js
+          grep -q 'SCANNER MANDATE' web/scanner.html
+          grep -q 'LIVE CANDIDATE LEADERBOARD' web/scanner.html
+          grep -q 'market_flow' app/live_intelligence.py
+          grep -q 'market_flow_minute' app/market_flow.py
+          grep -q 'position_id' app/backtest.py
+          grep -q 'level_history' app/backtest.py
+          grep -q 'exited_this_bar' app/backtest.py
+          grep -q 'position-lifecycle.js' web/v4-shell.js
+          grep -q '<body class="v5-chart-active">' web/index.html
+          grep -q '/static/product-chrome.css' web/index.html
+          grep -q '/static/product-chrome.js' web/index.html
+          grep -q '/static/v4-universe.js' web/index.html
+          grep -q '/static/v5-chart-workspace.js' web/index.html
+          grep -q '/static/product-chrome.js' web/scanner.html
+          grep -q '/static/product-chrome.js' web/sessions.html
+          grep -q '/static/product-chrome.js' web/research.html
+          grep -q '/static/product-chrome.js' web/strategies.html
+          ! grep -q 'ensureCanonicalShell' web/v4-shell.js
+          ! grep -q 'createElement.*script' web/v4-shell.js
+          ! grep -q 'installCanonicalNavigation' web/v4-shell.js
+          ! grep -q 'installRailIcons' web/v5-chart-workspace.js
+          ! grep -q 'navIcons' web/v5-chart-workspace.js
+          ! grep -q 'rail-primary' web/v5-chart-workspace.js
+          ! grep -q 'scanner-active' web/v5-chart-workspace.js
+          ! grep -q 'railScanner' web/v5-chart-workspace.js
+          ! grep -q 'installStyle' web/v5-chart-workspace.js
+          ! grep -q 'modalSnapshot' web/v5-chart-workspace.js
+          ! grep -q 'snapshotStrategy' web/v5-chart-workspace.js
+          ! grep -q 'strategyFields' web/v5-chart-workspace.js
+          ! grep -q '/api/scanner/run' web/scanner.js
+          ! grep -q 'Run opportunity scan' web/scanner.html
+          ! grep -R -E 'v4-command-center|v4-scanner-v2|v4-final-chrome|v4-sitewide|v4-visual-qa|v4-universe-refine|v4-universe-safety|canonical-shell.css' README.md docs web --exclude='product-chrome.js'
       - name: Runtime HTTP smoke test
         run: python scripts/runtime_smoke.py
       - name: Upload pytest report
@@ -119,3 +112,27 @@ jobs:
           name: pytest-report-${{ github.run_id }}
           path: pytest-report.xml
           if-no-files-found: warn
+
+  visual-shell:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      EPINNOX_DISABLE_LIVE_INTELLIGENCE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: pip install playwright
+      - run: python -m playwright install --with-deps chromium
+      - name: Capture and assert canonical shell
+        run: python scripts/visual_shell_smoke.py
+      - name: Upload visual shell screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-shell-${{ github.run_id }}
+          path: artifacts/visual-shell
+          if-no-files-found: error

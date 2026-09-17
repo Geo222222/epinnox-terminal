@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .backtest import run_backtest
+from .live_intelligence import live_intelligence
 from .market import TIMEFRAME_SPECS, cache_stats, fetch_ohlcv, fetch_ohlcv_range, symbols
 from .models import BacktestRequest, PaperLiveStartRequest, ScannerRequest
 from .online_bridge import (
@@ -42,15 +43,18 @@ TIMEFRAME_LABELS = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Durable paper sessions remain in SQLite across restart. Recovery requires
-    # the user's authenticated Epinnox Online browser cookie, so sessions are
-    # re-attached explicitly through /api/sessions/{id}/recover instead of
-    # pretending a server process can preserve browser authentication.
-    yield
-    await paper_sessions.shutdown()
+    live_enabled = os.getenv("EPINNOX_DISABLE_LIVE_INTELLIGENCE", "0") != "1"
+    if live_enabled:
+        live_intelligence.start()
+    try:
+        yield
+    finally:
+        if live_enabled:
+            live_intelligence.shutdown()
+        await paper_sessions.shutdown()
 
 
-app = FastAPI(title="Epinnox Terminal", version="0.7.0", lifespan=lifespan)
+app = FastAPI(title="Epinnox Terminal", version="0.8.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=WEB), name="static")
 
 
@@ -130,6 +134,7 @@ def health():
         "service": "epinnox-terminal",
         "version": app.version,
         "market_cache": cache_stats(),
+        "live_intelligence": live_intelligence.status(),
         "paper_sessions": {"active": len(active), "running_in_process": sum(1 for x in active if x.get("running"))},
         "epinnox_online_configured": bool(_online_base()),
     }
@@ -151,6 +156,7 @@ def config():
         "scanner_objectives": ["Capital Growth", "Break-Even Throughput"],
         "default_symbol": terminal["default_symbol"],
         "defaults": settings,
+        "live_intelligence": live_intelligence.status(),
         "execution": {
             "epinnox_online_base_url": _online_base(),
             "paper_live_adapter_configured": bool(_online_base()),
@@ -203,6 +209,42 @@ async def list_symbols():
         raise HTTPException(502, f"HTX symbol load failed: {exc}") from exc
 
 
+@app.get("/api/live/status")
+def live_status():
+    return live_intelligence.status()
+
+
+@app.get("/api/live/universe")
+def live_universe(window: str = Query("8h")):
+    try:
+        return live_intelligence.universe_snapshot(window)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/live/control")
+def live_control(payload: dict[str, Any] = Body(...)):
+    allowed = {"universe_enabled", "scanner_enabled", "pause_all"}
+    unknown = set(payload) - allowed
+    if unknown:
+        raise HTTPException(400, f"Unsupported live-control fields: {', '.join(sorted(unknown))}")
+    universe = payload.get("universe_enabled")
+    scanner = payload.get("scanner_enabled")
+    if "pause_all" in payload:
+        enabled = not bool(payload["pause_all"])
+        universe = enabled
+        scanner = enabled
+    return live_intelligence.set_controls(universe_enabled=universe, scanner_enabled=scanner)
+
+
+@app.post("/api/live/mandate")
+def live_mandate(payload: dict[str, Any] = Body(...)):
+    try:
+        return live_intelligence.update_mandate(payload)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
 @app.get("/api/market")
 async def market(symbol: str = Query("ETH/USDT:USDT"), timeframe: str = Query("1m"), limit: int = Query(1000, ge=100, le=50000)):
     try:
@@ -228,6 +270,11 @@ async def backtest(req: BacktestRequest):
 
 @app.post("/api/scanner/run")
 async def scanner_run(req: ScannerRequest):
+    """One-shot scanner API retained for deterministic external experiments.
+
+    Product UI uses the continuous Live Scanner runtime. This endpoint remains
+    an explicit research primitive rather than a second competing UI lifecycle.
+    """
     try:
         result = await run_compute(run_scanner, req)
         scan_store.save(result)
@@ -365,7 +412,7 @@ def execution_status():
     latest = _latest_session_snapshot()
     return {
         "backtest": "ready",
-        "scanner": "ready",
+        "scanner": live_intelligence.status()["scanner"]["state"].lower(),
         "paper": "ready" if base else "not-configured",
         "live": "account-selection-ready",
         "live_order_routing": "not-armed",
@@ -385,7 +432,7 @@ def execution_status():
     }
 
 
-# Compatibility routes for the existing frontend. V4 will use /api/sessions/* directly.
+# Compatibility routes for the existing frontend. V4 uses /api/sessions/* directly.
 @app.post("/api/paper-live/start")
 async def start_paper_live(req: PaperLiveStartRequest, request: Request):
     return await start_paper_session(req, request)

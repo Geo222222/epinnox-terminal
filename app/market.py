@@ -41,10 +41,6 @@ def exchange():
 
 
 def _fetch_exchange_ohlcv(*args, **kwargs):
-    # ``exchange()`` is a singleton so that CCXT can reuse market metadata and
-    # rate-limit state. CCXT clients are not treated as thread-safe here; the
-    # bounded compute executor may have multiple workers, so serialize client
-    # access while allowing indicator/backtest CPU work to run concurrently.
     with _EXCHANGE_LOCK:
         return exchange().fetch_ohlcv(*args, **kwargs)
 
@@ -233,13 +229,74 @@ def fetch_ohlcv_range(
     return _copy_candles(out)
 
 
-def symbols() -> list[str]:
+def _eligible_markets() -> tuple[dict[str, dict[str, Any]], list[str]]:
     with _EXCHANGE_LOCK:
         markets = exchange().load_markets()
-    out = []
-    for sym, m in markets.items():
-        if m.get("swap") and m.get("linear") and m.get("quote") == "USDT" and m.get("active", True):
-            out.append(sym)
+    eligible: dict[str, dict[str, Any]] = {}
+    for sym, market in markets.items():
+        if market.get("swap") and market.get("linear") and market.get("quote") == "USDT" and market.get("active", True):
+            eligible[sym] = market
     preferred = ["ETH/USDT:USDT", "BTC/USDT:USDT", "DOGE/USDT:USDT", "SOL/USDT:USDT", "XRP/USDT:USDT"]
-    ordered = [s for s in preferred if s in out] + sorted(s for s in out if s not in preferred)
-    return ordered[:250]
+    ordered = [s for s in preferred if s in eligible] + sorted(s for s in eligible if s not in preferred)
+    return eligible, ordered
+
+
+def symbols() -> list[str]:
+    return _eligible_markets()[1]
+
+
+def market_catalog() -> list[dict[str, Any]]:
+    """Return the complete active HTX linear-USDT swap catalog in one bulk request.
+
+    The live Universe consumes this catalog directly. Missing ticker fields are
+    represented as ``None`` rather than fabricated values so degraded HTX data
+    remains visible and fail-closed. No arbitrary top-N cap is applied to the
+    eligible venue catalog.
+    """
+    eligible, ordered = _eligible_markets()
+    with _EXCHANGE_LOCK:
+        client = exchange()
+        tickers = client.fetch_tickers(ordered) if client.has.get("fetchTickers") else {}
+    now = int(time.time() * 1000)
+    rows: list[dict[str, Any]] = []
+    for symbol in ordered:
+        market = eligible[symbol]
+        ticker = tickers.get(symbol) or {}
+        info = ticker.get("info") if isinstance(ticker.get("info"), dict) else {}
+        last = ticker.get("last")
+        quote_volume = ticker.get("quoteVolume")
+        base_volume = ticker.get("baseVolume")
+        percentage = ticker.get("percentage")
+        change = ticker.get("change")
+        if percentage is None and change is not None and ticker.get("open"):
+            try:
+                percentage = float(change) / float(ticker["open"]) * 100.0
+            except (TypeError, ValueError, ZeroDivisionError):
+                percentage = None
+        rows.append({
+            "symbol": symbol,
+            "base": str(market.get("base") or symbol.split("/")[0]),
+            "quote": "USDT",
+            "market_id": market.get("id"),
+            "active": bool(market.get("active", True)),
+            "contract_size": market.get("contractSize"),
+            "price": None if last is None else float(last),
+            "change_24h_pct": None if percentage is None else float(percentage),
+            "base_volume_24h": None if base_volume is None else float(base_volume),
+            "quote_volume_24h": None if quote_volume is None else float(quote_volume),
+            "bid": None if ticker.get("bid") is None else float(ticker["bid"]),
+            "ask": None if ticker.get("ask") is None else float(ticker["ask"]),
+            "high_24h": None if ticker.get("high") is None else float(ticker["high"]),
+            "low_24h": None if ticker.get("low") is None else float(ticker["low"]),
+            "ticker_ts_ms": int(ticker.get("timestamp") or now),
+            "funding_rate": _safe_float(info.get("funding_rate") or info.get("fundingRate")),
+            "open_interest": _safe_float(info.get("open_interest") or info.get("openInterest")),
+        })
+    return rows
+
+
+def _safe_float(value: Any) -> float | None:
+    try:
+        return None if value is None or value == "" else float(value)
+    except (TypeError, ValueError):
+        return None

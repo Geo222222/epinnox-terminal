@@ -50,6 +50,15 @@ def assert_contains(path: str, marker: str) -> None:
     print(f"[ok] {path} -> 200 and contains {marker!r}")
 
 
+def assert_not_contains(path: str, marker: str) -> None:
+    status, _, body = fetch(path)
+    if status != 200:
+        raise AssertionError(f"{path} returned {status}, expected 200")
+    if marker in body:
+        raise AssertionError(f"{path} unexpectedly contains obsolete marker {marker!r}")
+    print(f"[ok] {path} -> does not contain obsolete marker {marker!r}")
+
+
 def assert_json_contract(path: str, checks: dict[str, object]) -> None:
     status, content_type, body = fetch(path)
     if status != 200:
@@ -71,48 +80,20 @@ def assert_json_contract(path: str, checks: dict[str, object]) -> None:
 def run() -> None:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT)
-    command = [
-        sys.executable,
-        "-m",
-        "uvicorn",
-        "app.main:app",
-        "--host",
-        HOST,
-        "--port",
-        str(PORT),
-        "--log-level",
-        "warning",
-    ]
-    process = subprocess.Popen(
-        command,
-        cwd=ROOT,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
+    env["EPINNOX_DISABLE_LIVE_INTELLIGENCE"] = "1"
+    command = [sys.executable, "-m", "uvicorn", "app.main:app", "--host", HOST, "--port", str(PORT), "--log-level", "warning"]
+    process = subprocess.Popen(command, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     try:
         wait_until_ready(process)
         print(f"[ok] Epinnox Terminal runtime ready at {BASE}")
 
-        assert_json_contract(
-            "/api/health",
-            {
-                "ok": True,
-                "service": "epinnox-terminal",
-            },
-        )
-        assert_json_contract(
-            "/api/config",
-            {
-                "execution.account_context": "epinnox-online-session",
-                "execution.live_order_routing_armed": False,
-                "execution.multi_session": True,
-            },
-        )
+        assert_json_contract("/api/health", {"ok": True, "service": "epinnox-terminal"})
+        assert_json_contract("/api/config", {"execution.account_context": "epinnox-online-session", "execution.live_order_routing_armed": False, "execution.multi_session": True})
+        assert_json_contract("/api/live/status", {"schema_version": 2, "started": False, "controls.universe_enabled": True, "controls.scanner_enabled": True})
+        assert_json_contract("/api/live/universe", {"schema_version": 2})
 
         for path, marker in {
-            "/": 'id="sessionRail"',
+            "/": '<body class="v5-chart-active">',
             "/scanner": "CANDIDATE LEADERBOARD",
             "/sessions": "SESSION REGISTRY",
             "/research": "UNIVERSE CANDIDATES",
@@ -120,15 +101,41 @@ def run() -> None:
         }.items():
             assert_contains(path, marker)
 
+        for marker in (
+            '/static/product-chrome.css',
+            '/static/product-chrome.js',
+            '/static/v4-universe.css',
+            '/static/v5-chart-workspace.css',
+            '/static/v4-universe.js',
+            '/static/v5-chart-workspace.js',
+        ):
+            assert_contains("/", marker)
+
         for path, marker in {
-            "/static/v4-shell.js": "v4-universe-safety.js",
-            "/static/v4-universe-refine.js": "Cross-scan market evidence",
-            "/static/v4-universe-safety.js": "leaveUniverseForMode",
-            "/static/v4-visual-qa.css": "prefers-reduced-motion",
+            "/static/product-chrome.js": "__EPINNOX_CANONICAL_SHELL__",
+            "/static/product-chrome.js": "ep-global-nav",
+            "/static/v4-universe.js": "LIVE UNIVERSE",
+            "/static/v4-universe.css": "prefers-reduced-motion",
+            "/static/v5-chart-workspace.css": "min-height:180px!important",
             "/static/product-visual-qa.css": "prefers-reduced-motion",
             "/static/research.js": "epinnox.universe.saved.v1",
         }.items():
             assert_contains(path, marker)
+
+        for obsolete in ("v4-command-center", "v4-scanner-v2", "v4-final-chrome", "v4-sitewide", "v4-visual-qa"):
+            assert_not_contains("/static/v4-shell.js", obsolete)
+            assert_not_contains("/", obsolete)
+
+        assert_not_contains("/static/v4-shell.js", "ensureCanonicalShell")
+        assert_not_contains("/static/v4-shell.js", "createElement('script')")
+        assert_not_contains("/static/v4-shell.js", "insertAdjacentHTML")
+        assert_not_contains("/static/v4-shell.js", "railStrategy")
+        assert_not_contains("/static/v5-chart-workspace.js", "installRailIcons")
+        assert_not_contains("/static/v5-chart-workspace.js", "navIcons")
+        assert_not_contains("/static/v5-chart-workspace.js", "scanner-active")
+        assert_not_contains("/static/v5-chart-workspace.js", "railScanner")
+        assert_not_contains("/static/v5-chart-workspace.js", "installStyle")
+        assert_not_contains("/static/v5-chart-workspace.js", "modalSnapshot")
 
         assert_json_contract("/api/scanner/runs?limit=1", {"schema_version": 1})
         print("[ok] runtime smoke gate passed without market-data or execution mutations")

@@ -8,8 +8,12 @@
   <link rel="stylesheet" href="/static/styles.css" />
   <link rel="stylesheet" href="/static/workstation.css" />
   <link rel="stylesheet" href="/static/v4-shell.css" />
+  <link rel="stylesheet" href="/static/v4-workbench.css" />
+  <link rel="stylesheet" href="/static/v4-universe.css" />
+  <link rel="stylesheet" href="/static/v5-chart-workspace.css" />
+  <link rel="stylesheet" href="/static/product-chrome.css" />
 </head>
-<body>
+<body class="v5-chart-active">
   <div class="app-shell">
     <header class="topbar">
       <div class="brand-block">
@@ -50,12 +54,15 @@
         <div class="rail-primary">
           <button id="railBacktest" class="rail-workspace active" type="button"><strong>CHART</strong><span>Research workspace</span></button>
           <a class="rail-workspace rail-workspace-link" href="/scanner"><strong>SCANNER</strong><span>Opportunity research</span></a>
+          <a class="rail-workspace rail-workspace-link" href="/sessions"><strong>SESSIONS</strong><span>Paper operations</span></a>
+          <a class="rail-workspace rail-workspace-link" href="/research"><strong>RESEARCH</strong><span>Evidence library</span></a>
         </div>
         <div class="rail-section-label">PAPER SESSIONS</div>
         <div id="sessionList" class="session-list"><div class="rail-empty">Loading durable sessions…</div></div>
         <div class="rail-foot">
-          <button id="railStrategy" class="rail-link rail-button" type="button">⚙ Strategy configuration</button>
+          <button id="openStrategyTab" class="rail-link rail-button" type="button">⚙ Strategy configuration</button>
           <span class="rail-link" aria-disabled="true">◎ Live sessions · locked</span>
+          <a class="rail-link" href="/strategies">◇ Strategy library</a>
         </div>
       </aside>
 
@@ -191,7 +198,11 @@
     <footer class="statusbar"><div class="status-left"><span class="status-led"></span><span id="status">Ready.</span></div><div class="status-right"><span id="autoStatus">Backtest auto-apply enabled</span><span class="separator">•</span><span>Epinnox intelligence for Benjamin</span></div></footer>
   </div>
   <script src="/static/persistence.js"></script>
+  <script src="/static/product-chrome.js" defer></script>
   <script src="/static/v4-shell.js" defer></script>
+  <script src="/static/v4-workbench.js" defer></script>
+  <script src="/static/v4-universe.js" defer></script>
+  <script src="/static/v5-chart-workspace.js" defer></script>
   <script type="module" src="/static/app.js"></script>
 </body>
 </html>
