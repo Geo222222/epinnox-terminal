@@ -7,6 +7,7 @@ WEB = ROOT / "web"
 def test_universe_surface_is_live_flow_terminal():
     js = (WEB / "v4-universe.js").read_text(encoding="utf-8")
     css = (WEB / "v4-universe.css").read_text(encoding="utf-8")
+    index = (WEB / "index.html").read_text(encoding="utf-8")
     shell = (WEB / "v4-shell.js").read_text(encoding="utf-8")
 
     for token in [
@@ -35,8 +36,9 @@ def test_universe_surface_is_live_flow_terminal():
     assert ".universe-workspace" in css
     assert ".u-row.state-pulse" in css
     assert "prefers-reduced-motion" in css
-    assert "/static/v4-universe.js" in shell
-    assert "/static/v4-universe.css" in shell
+    assert "/static/v4-universe.js" in index
+    assert "/static/v4-universe.css" in index
+    assert "v4-universe" not in shell
     assert "v4-universe-refine" not in shell
     assert "v4-universe-safety" not in shell
 
