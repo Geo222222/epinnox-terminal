@@ -80,6 +80,14 @@
     const qaStyle=document.createElement('link');
     qaStyle.rel='stylesheet';qaStyle.href='/static/v4-visual-qa.css';document.head.appendChild(qaStyle);
   }
+  // V5 owns the Chart surface only: chart-first layout, compact SVG tooling,
+  // quick primary-strategy control, bottom-dock position context, and modal settings.
+  if(!document.querySelector('link[href="/static/v5-chart-workspace.css"]')){
+    const chartStyle=document.createElement('link');chartStyle.rel='stylesheet';chartStyle.href='/static/v5-chart-workspace.css';document.head.appendChild(chartStyle);
+  }
+  if(!document.querySelector('script[src="/static/v5-chart-workspace.js"]')){
+    const chartV5=document.createElement('script');chartV5.src='/static/v5-chart-workspace.js';chartV5.defer=true;document.body.appendChild(chartV5);
+  }
   const rail=document.getElementById('sessionRail');
   if(!rail)return;
   const list=document.getElementById('sessionList');
