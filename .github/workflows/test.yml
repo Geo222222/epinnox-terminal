@@ -31,8 +31,6 @@ jobs:
           node --check web/v4-universe.js
           node --check web/v4-final-chrome.js
           node --check web/v4-sitewide.js
-          node --check web/v4-universe-refine.js
-          node --check web/v4-universe-safety.js
           node --check web/v5-chart-workspace.js
       - name: Verify workstation assets
         run: |
@@ -53,10 +51,6 @@ jobs:
           test -s web/v4-final-chrome.js
           test -s web/v4-sitewide.css
           test -s web/v4-sitewide.js
-          test -s web/v4-universe-refine.css
-          test -s web/v4-universe-refine.js
-          test -s web/v4-universe-safety.css
-          test -s web/v4-universe-safety.js
           test -s web/v4-visual-qa.css
           test -s web/v5-chart-workspace.css
           test -s web/v5-chart-workspace.js
@@ -68,10 +62,16 @@ jobs:
           test -s web/sessions.html
           test -s web/research.html
           test -s web/strategies.html
+          test ! -e web/v4-universe-refine.css
+          test ! -e web/v4-universe-refine.js
+          test ! -e web/v4-universe-safety.css
+          test ! -e web/v4-universe-safety.js
           grep -q "execution/accounts" app/main.py
           grep -q 'def sessions_page' app/main.py
           grep -q 'def research_page' app/main.py
           grep -q 'def strategies_page' app/main.py
+          grep -q 'market_flow' app/live_intelligence.py
+          grep -q 'market_flow_minute' app/market_flow.py
           grep -q "drawingToolbar" web/app.js
           grep -q 'id="sessionRail"' web/index.html
           grep -q 'id="accountSelector"' web/index.html
@@ -83,20 +83,18 @@ jobs:
           grep -q 'v4-universe.js' web/v4-shell.js
           grep -q 'v4-final-chrome.js' web/v4-shell.js
           grep -q 'v4-sitewide.js' web/v4-shell.js
-          grep -q 'v4-universe-refine.js' web/v4-shell.js
-          grep -q 'v4-universe-safety.css' web/v4-shell.js
-          grep -q 'v4-universe-safety.js' web/v4-shell.js
           grep -q 'v4-visual-qa.css' web/v4-shell.js
           grep -q 'v5-chart-workspace.js' web/v4-shell.js
           grep -q 'v5-chart-workspace.css' web/v4-shell.js
+          ! grep -q 'v4-universe-refine' web/v4-shell.js
+          ! grep -q 'v4-universe-safety' web/v4-shell.js
+          grep -q 'LIVE UNIVERSE' web/v4-universe.js
+          grep -q '/api/live/universe' web/v4-universe.js
+          grep -q '/api/live/control' web/v4-universe.js
           grep -q 'product-visual-qa.css' web/scanner.css
           grep -q 'product-visual-qa.css' web/sessions.css
           grep -q 'product-visual-qa.css' web/research.css
           grep -q 'product-visual-qa.css' web/strategies.css
-          grep -q 'Cross-scan market evidence' web/v4-universe-refine.js
-          grep -q 'Paper qualification is blocked' web/v4-universe-refine.js
-          grep -q 'WHY THIS CANDIDATE FAILED' web/v4-universe-safety.js
-          grep -q 'leaveUniverseForMode' web/v4-universe-safety.js
           grep -q 'epinnox.universe.saved.v1' web/research.js
           grep -q 'UNIVERSE CANDIDATES' web/research.html
           grep -q 'href="/sessions"' web/v4-shell.js
