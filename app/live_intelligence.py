@@ -11,6 +11,7 @@ import time
 from typing import Any
 
 from .market import market_catalog, symbols
+from .market_flow import market_flow
 from .models import ScannerRequest
 from .presets import STRATEGIES
 from .scan_store import scan_store
@@ -24,11 +25,12 @@ TAXONOMY_PATH = ROOT / "config" / "asset_taxonomy.json"
 
 
 class LiveIntelligenceRuntime:
-    """Continuous HTX market observation + bounded evidence qualification.
+    """One continuous runtime for Universe market state and Scanner evidence.
 
-    Universe and Scanner are independent runtime loops. Pausing a loop prevents
-    new work from being admitted; an in-flight atomic scanner batch is allowed
-    to finish and persist before the Scanner transitions to PAUSED.
+    The Universe owns canonical market observation and market-flow state. The
+    Scanner consumes the same symbol catalog and persists deterministic evidence.
+    Pausing either surface suppresses its own updates without creating a second
+    data path or destroying the other runtime.
     """
 
     def __init__(self, path: Path = DB_PATH) -> None:
@@ -40,7 +42,7 @@ class LiveIntelligenceRuntime:
         self._started = False
         self._catalog: list[dict[str, Any]] = []
         self._evidence: dict[str, dict[str, Any]] = {}
-        self._events: deque[dict[str, Any]] = deque(maxlen=80)
+        self._events: deque[dict[str, Any]] = deque(maxlen=120)
         self._market_state = "STARTING"
         self._scanner_state = "STARTING"
         self._market_error: str | None = None
@@ -109,7 +111,7 @@ class LiveIntelligenceRuntime:
             "batch_size": 2,
             "market_refresh_seconds": 5,
             "scanner_idle_seconds": 2,
-            "evidence_stale_seconds": 14_400
+            "evidence_stale_seconds": 14_400,
         }
 
     def _load_state(self) -> dict[str, Any]:
@@ -142,8 +144,10 @@ class LiveIntelligenceRuntime:
                      mandate_json=excluded.mandate_json,
                      updated_at_ms=excluded.updated_at_ms""",
                 (
-                    int(bool(data["universe_enabled"])), int(bool(data["scanner_enabled"])),
-                    json.dumps(data["mandate"], separators=(",", ":")), int(time.time() * 1000),
+                    int(bool(data["universe_enabled"])),
+                    int(bool(data["scanner_enabled"])),
+                    json.dumps(data["mandate"], separators=(",", ":")),
+                    int(time.time() * 1000),
                 ),
             )
 
@@ -155,14 +159,30 @@ class LiveIntelligenceRuntime:
             return {"schema_version": 1, "taxonomy_id": "fallback", "categories": {}}
 
     def _category(self, base: str) -> str:
+        aliases = {
+            "MAJORS": "MAJOR",
+            "LARGE_CAP": "LARGE_CAP",
+            "ALTCOINS": "ALTCOIN",
+            "MEME": "MEME",
+            "DEFI": "DEFI",
+            "AI": "AI",
+            "L1": "L1",
+            "L2": "L2",
+            "RWA": "RWA",
+            "STABLECOINS": "STABLECOIN",
+        }
         for category, assets in self._taxonomy.get("categories", {}).items():
             if base in assets:
-                return category
-        return "OTHER / UNCLASSIFIED"
+                return aliases.get(str(category).upper(), str(category).upper().replace(" / ", "_"))
+        return "OTHER"
 
     def _recover_evidence(self) -> None:
         for scan in reversed(scan_store.recent_results(60)):
             self._ingest_scan(scan, emit=False)
+
+    def _catalog_copy(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return deepcopy(self._catalog)
 
     def start(self) -> None:
         with self._lock:
@@ -174,10 +194,12 @@ class LiveIntelligenceRuntime:
             self._scanner_thread = threading.Thread(target=self._scanner_loop, name="epinnox-live-scanner", daemon=True)
             self._market_thread.start()
             self._scanner_thread.start()
-            self._event("runtime_started", "Live Universe and Live Scanner runtime started")
+            market_flow.start(self._catalog_copy)
+            self._event("runtime_started", "Live Universe, flow collector, and Live Scanner started")
 
     def shutdown(self) -> None:
         self._stop.set()
+        market_flow.shutdown()
         for thread in (self._market_thread, self._scanner_thread):
             if thread and thread.is_alive():
                 thread.join(timeout=1.5)
@@ -196,7 +218,11 @@ class LiveIntelligenceRuntime:
                 else:
                     self._scanner_state = "STARTING" if scanner_enabled else "PAUSED"
             self._persist_state()
-            self._event("control_changed", f"Universe={'LIVE' if self._state['universe_enabled'] else 'PAUSED'} · Scanner={'LIVE' if self._state['scanner_enabled'] else 'PAUSED'}")
+            self._event(
+                "control_changed",
+                f"Universe={'LIVE' if self._state['universe_enabled'] else 'PAUSED'} · "
+                f"Scanner={'LIVE' if self._state['scanner_enabled'] else 'PAUSED'}",
+            )
         return self.status()
 
     def update_mandate(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -227,10 +253,8 @@ class LiveIntelligenceRuntime:
 
     def _scanner_request(self, selected_symbols: list[str]) -> ScannerRequest:
         mandate = deepcopy(self._state["mandate"])
-        mandate.pop("batch_size", None)
-        mandate.pop("market_refresh_seconds", None)
-        mandate.pop("scanner_idle_seconds", None)
-        mandate.pop("evidence_stale_seconds", None)
+        for key in ("batch_size", "market_refresh_seconds", "scanner_idle_seconds", "evidence_stale_seconds"):
+            mandate.pop(key, None)
         return ScannerRequest(symbols=selected_symbols, **mandate)
 
     def _market_loop(self) -> None:
@@ -245,6 +269,7 @@ class LiveIntelligenceRuntime:
                     self._market_state = "RUNNING"
                 rows = market_catalog()
                 now = int(time.time() * 1000)
+                market_flow.observe_catalog(rows)
                 with self._lock:
                     self._catalog = rows
                     self._market_generation += 1
@@ -272,7 +297,8 @@ class LiveIntelligenceRuntime:
                 available = [row["symbol"] for row in self._catalog] or symbols()
                 batch = self._next_batch(available)
                 if not batch:
-                    self._scanner_state = "IDLE"
+                    with self._lock:
+                        self._scanner_state = "IDLE"
                     self._stop.wait(1.0)
                     continue
                 with self._lock:
@@ -289,7 +315,10 @@ class LiveIntelligenceRuntime:
                     self._last_evidence_commit_ms = int(time.time() * 1000)
                     self._active_batch = []
                     self._scanner_state = "RUNNING" if self._state["scanner_enabled"] else "PAUSED"
-                self._event("scan_committed", f"Cycle {self._scanner_cycle} · {', '.join(x.split('/')[0] for x in batch)} · {time.time()-started:.1f}s")
+                self._event(
+                    "scan_committed",
+                    f"Cycle {self._scanner_cycle} · {', '.join(x.split('/')[0] for x in batch)} · {time.time()-started:.1f}s",
+                )
             except Exception as exc:
                 logger.exception("live scanner batch failed")
                 with self._lock:
@@ -313,14 +342,19 @@ class LiveIntelligenceRuntime:
             volume = {row["symbol"]: float(row.get("quote_volume_24h") or 0.0) for row in self._catalog}
             for row in self._evidence.values():
                 symbol = str(row.get("symbol") or "")
-                if not symbol:
-                    continue
-                last[symbol] = max(last.get(symbol, 0), int(row.get("__completed_at_ms") or 0))
-            ordered = sorted(available, key=lambda symbol: (last.get(symbol, 0) > 0, last.get(symbol, 0), -volume.get(symbol, 0.0), symbol))
+                if symbol:
+                    last[symbol] = max(last.get(symbol, 0), int(row.get("__completed_at_ms") or 0))
+            ordered = sorted(
+                available,
+                key=lambda symbol: (last.get(symbol, 0) > 0, last.get(symbol, 0), -volume.get(symbol, 0.0), symbol),
+            )
             requested = int(self._state["mandate"].get("batch_size", 2))
             count = self._validate_batch_geometry(self._state["mandate"], requested)
         retry_after = 300_000
-        eligible = [s for s in ordered if now - last.get(s, 0) >= retry_after or any(k.startswith(s + "|") for k in self._evidence)]
+        eligible = [
+            symbol for symbol in ordered
+            if now - last.get(symbol, 0) >= retry_after or any(key.startswith(symbol + "|") for key in self._evidence)
+        ]
         return (eligible or ordered)[:count]
 
     def _ingest_scan(self, scan: dict[str, Any], *, emit: bool) -> None:
@@ -329,7 +363,9 @@ class LiveIntelligenceRuntime:
         with self._lock:
             for row in scan.get("results", []):
                 key = "|".join([
-                    str(row.get("symbol") or ""), str(row.get("timeframe") or ""), str(row.get("strategy") or ""),
+                    str(row.get("symbol") or ""),
+                    str(row.get("timeframe") or ""),
+                    str(row.get("strategy") or ""),
                     f"{float(row.get('target_buffer_pct') or 0):.8f}",
                 ])
                 existing = self._evidence.get(key)
@@ -351,10 +387,35 @@ class LiveIntelligenceRuntime:
             -float(row.get("robustness_score") or 0.0),
         )
 
+    @staticmethod
+    def _scanner_components(best: dict[str, Any] | None, coverage_pct: float) -> dict[str, float]:
+        if not best:
+            return {"evidence": 0.0, "robustness": 0.0, "qualification": 0.0, "coverage": round(coverage_pct, 2)}
+        robustness = max(0.0, min(100.0, float(best.get("robustness_score") or 0.0)))
+        qualification = 100.0 if best.get("qualified") else 0.0
+        expectancy = float(best.get("net_expectancy_usdt") or 0.0)
+        evidence = max(0.0, min(100.0, 50.0 + expectancy * 5.0))
+        return {
+            "evidence": round(evidence, 2),
+            "robustness": round(robustness, 2),
+            "qualification": qualification,
+            "coverage": round(coverage_pct, 2),
+        }
+
+    @staticmethod
+    def _scanner_score(components: dict[str, float]) -> float:
+        return round(
+            0.25 * components["evidence"]
+            + 0.35 * components["robustness"]
+            + 0.25 * components["qualification"]
+            + 0.15 * components["coverage"],
+            2,
+        )
+
     def status(self) -> dict[str, Any]:
         with self._lock:
             return {
-                "schema_version": 1,
+                "schema_version": 2,
                 "started": self._started,
                 "controls": {
                     "universe_enabled": bool(self._state["universe_enabled"]),
@@ -366,6 +427,7 @@ class LiveIntelligenceRuntime:
                     "markets": len(self._catalog),
                     "last_tick_ms": self._last_market_tick_ms or None,
                     "error": self._market_error,
+                    "flow": market_flow.status(),
                 },
                 "scanner": {
                     "state": self._scanner_state,
@@ -376,7 +438,10 @@ class LiveIntelligenceRuntime:
                     "error": self._scanner_error,
                 },
                 "mandate": deepcopy(self._state["mandate"]),
-                "taxonomy": {"schema_version": self._taxonomy.get("schema_version"), "taxonomy_id": self._taxonomy.get("taxonomy_id")},
+                "taxonomy": {
+                    "schema_version": self._taxonomy.get("schema_version"),
+                    "taxonomy_id": self._taxonomy.get("taxonomy_id"),
+                },
                 "events": list(self._events)[:30],
             }
 
@@ -392,20 +457,17 @@ class LiveIntelligenceRuntime:
         expected = max(1, len(mandate["strategies"]) * len(mandate["timeframes"]) * len(mandate["target_buffers_pct"]))
         now = int(time.time() * 1000)
         stale_ms = int(float(mandate.get("evidence_stale_seconds", 14_400)) * 1000)
-        volume_rank = sorted((float(x.get("quote_volume_24h") or 0.0), x["symbol"]) for x in catalog)
-        rank_lookup = {symbol: idx for idx, (_, symbol) in enumerate(volume_rank)}
-        total = max(1, len(volume_rank))
-        output: list[dict[str, Any]] = []
+        assets: list[dict[str, Any]] = []
         category_counts: dict[str, int] = {}
         for market in catalog:
-            symbol = market["symbol"]
-            base = str(market.get("base") or symbol.split("/")[0])
+            symbol = str(market["symbol"])
+            base = str(market.get("base") or symbol.split("/")[0]).upper()
             rows = sorted(by_symbol.get(symbol, []), key=self._row_order)
             best = rows[0] if rows else None
-            latest = max((int(x.get("__completed_at_ms") or 0) for x in rows), default=0)
+            latest = max((int(row.get("__completed_at_ms") or 0) for row in rows), default=0)
             combos = {
-                (str(x.get("timeframe")), str(x.get("strategy")), round(float(x.get("target_buffer_pct") or 0), 6))
-                for x in rows
+                (str(row.get("timeframe")), str(row.get("strategy")), round(float(row.get("target_buffer_pct") or 0), 6))
+                for row in rows
             }
             coverage_pct = min(100.0, 100.0 * len(combos) / expected)
             if not rows:
@@ -416,36 +478,88 @@ class LiveIntelligenceRuntime:
                 coverage_state = "PARTIAL"
             else:
                 coverage_state = "COVERED"
-            qualified = [x for x in rows if x.get("qualified")]
+            qualified = [row for row in rows if row.get("qualified")]
             qualification_state = "QUALIFIED" if qualified else ("REJECTED" if rows else "NO_EVIDENCE")
             category = self._category(base)
             category_counts[category] = category_counts.get(category, 0) + 1
-            idx = rank_lookup.get(symbol, 0)
-            percentile = idx / total
-            liquidity = "HIGH" if percentile >= 0.80 else ("MEDIUM" if percentile >= 0.40 else "THIN")
             move = abs(float(market.get("change_24h_pct") or 0.0))
             volatility = "HIGH" if move >= 8 else ("ELEVATED" if move >= 3 else "NORMAL")
-            output.append({
-                **market,
+            flow = market_flow.asset_snapshot(market, "8h")
+            components = self._scanner_components(best, coverage_pct)
+            scanner_score = self._scanner_score(components)
+            assets.append({
+                "id": f"HTX:{base}:PERPETUAL",
+                "canonical_symbol": base,
+                "base_asset": base,
+                "quote_asset": "USDT",
                 "category": category,
-                "liquidity_tier": liquidity,
+                "active": bool(market.get("active", True)),
+                "enabled": True,
+                "instruments": [{
+                    "id": f"HTX:{symbol}",
+                    "canonical_symbol": base,
+                    "base_asset": base,
+                    "quote_asset": "USDT",
+                    "venue": "HTX",
+                    "venue_symbol": symbol,
+                    "instrument_type": "PERPETUAL",
+                    "active": bool(market.get("active", True)),
+                    "enabled": True,
+                }],
+                "symbol": symbol,
+                "venue": "HTX",
+                "instrument_type": "PERPETUAL",
+                "price": market.get("price"),
+                "change_24h_pct": market.get("change_24h_pct"),
+                "bid": market.get("bid"),
+                "ask": market.get("ask"),
+                "high_24h": market.get("high_24h"),
+                "low_24h": market.get("low_24h"),
+                "ticker_ts_ms": market.get("ticker_ts_ms"),
                 "volatility_state": volatility,
+                "freshness_state": "LIVE" if now - int(market.get("ticker_ts_ms") or now) <= 15_000 else "STALE",
+                "flow": flow,
                 "coverage_state": coverage_state,
                 "coverage_pct": round(coverage_pct, 1),
                 "qualification_state": qualification_state,
                 "latest_evidence_ms": latest or None,
                 "evidence_rows": len(rows),
                 "qualified_candidates": len(qualified),
+                "scanner_score": scanner_score,
+                "scanner_score_components": components,
                 "best": best,
                 "strategies": rows[:12],
             })
+        assets.sort(
+            key=lambda row: (
+                -(float(row["flow"].get("flow_percentile") or -1.0)),
+                -(float(row["flow"].get("notional24h_reported_total") or 0.0)),
+                row["canonical_symbol"],
+            )
+        )
+        total_reported = sum(float(row["flow"].get("notional24h_reported_total") or 0.0) for row in assets)
+        total_spot = sum(float(row["flow"].get("notional24h_reported_spot") or 0.0) for row in assets)
+        total_derivatives = sum(float(row["flow"].get("notional24h_reported_derivative") or 0.0) for row in assets)
+        high = sum(1 for row in assets if row["flow"].get("flow_state") == "HIGH_PARTICIPATION")
+        extreme = sum(1 for row in assets if row["flow"].get("flow_state") == "EXTREME")
         return {
-            "schema_version": 1,
-            "source": "HTX via CCXT",
+            "schema_version": 2,
+            "source": "HTX canonical market + normalized flow collector",
             "generated_at_ms": now,
             "runtime": status,
+            "summary": {
+                "assets": len(assets),
+                "active": sum(1 for row in assets if row["active"]),
+                "high_participation": high,
+                "extreme": extreme,
+                "reported_notional_24h_total": total_reported,
+                "reported_notional_24h_spot": total_spot,
+                "reported_notional_24h_derivatives": total_derivatives,
+                "flow_quality": market_flow.status().get("quality"),
+            },
             "categories": [{"name": name, "count": count} for name, count in sorted(category_counts.items())],
-            "markets": output,
+            "assets": assets,
+            "markets": assets,
         }
 
 
