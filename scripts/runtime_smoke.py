@@ -80,62 +80,20 @@ def assert_json_contract(path: str, checks: dict[str, object]) -> None:
 def run() -> None:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT)
-    # The smoke gate validates contracts, not external HTX reachability. Keeping
-    # live ingestion disabled prevents a CI network condition from masquerading
-    # as an application-runtime failure.
     env["EPINNOX_DISABLE_LIVE_INTELLIGENCE"] = "1"
-    command = [
-        sys.executable,
-        "-m",
-        "uvicorn",
-        "app.main:app",
-        "--host",
-        HOST,
-        "--port",
-        str(PORT),
-        "--log-level",
-        "warning",
-    ]
-    process = subprocess.Popen(
-        command,
-        cwd=ROOT,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
+    command = [sys.executable, "-m", "uvicorn", "app.main:app", "--host", HOST, "--port", str(PORT), "--log-level", "warning"]
+    process = subprocess.Popen(command, cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     try:
         wait_until_ready(process)
         print(f"[ok] Epinnox Terminal runtime ready at {BASE}")
 
-        assert_json_contract(
-            "/api/health",
-            {"ok": True, "service": "epinnox-terminal"},
-        )
-        assert_json_contract(
-            "/api/config",
-            {
-                "execution.account_context": "epinnox-online-session",
-                "execution.live_order_routing_armed": False,
-                "execution.multi_session": True,
-            },
-        )
-        assert_json_contract(
-            "/api/live/status",
-            {
-                "schema_version": 2,
-                "started": False,
-                "controls.universe_enabled": True,
-                "controls.scanner_enabled": True,
-            },
-        )
-        assert_json_contract(
-            "/api/live/universe",
-            {"schema_version": 2},
-        )
+        assert_json_contract("/api/health", {"ok": True, "service": "epinnox-terminal"})
+        assert_json_contract("/api/config", {"execution.account_context": "epinnox-online-session", "execution.live_order_routing_armed": False, "execution.multi_session": True})
+        assert_json_contract("/api/live/status", {"schema_version": 2, "started": False, "controls.universe_enabled": True, "controls.scanner_enabled": True})
+        assert_json_contract("/api/live/universe", {"schema_version": 2})
 
         for path, marker in {
-            "/": 'id="sessionRail"',
+            "/": '<body class="v5-chart-active">',
             "/scanner": "CANDIDATE LEADERBOARD",
             "/sessions": "SESSION REGISTRY",
             "/research": "UNIVERSE CANDIDATES",
@@ -143,24 +101,19 @@ def run() -> None:
         }.items():
             assert_contains(path, marker)
 
-        # The canonical home surface must be fully declared at first paint.
         for marker in (
-            '<body class="v5-chart-active">',
-            'id="openStrategyTab"',
-            'href="/sessions"',
-            'href="/research"',
-            'href="/strategies"',
-            '/static/v4-workbench.css',
+            '/static/product-chrome.css',
+            '/static/product-chrome.js',
             '/static/v4-universe.css',
             '/static/v5-chart-workspace.css',
-            '/static/v4-workbench.js',
             '/static/v4-universe.js',
             '/static/v5-chart-workspace.js',
         ):
             assert_contains("/", marker)
 
         for path, marker in {
-            "/static/v4-shell.js": "Canonical navigation and home-page surfaces are declared in index.html.",
+            "/static/product-chrome.js": "__EPINNOX_CANONICAL_SHELL__",
+            "/static/product-chrome.js": "ep-global-nav",
             "/static/v4-universe.js": "LIVE UNIVERSE",
             "/static/v4-universe.css": "prefers-reduced-motion",
             "/static/v5-chart-workspace.css": "min-height:180px!important",
@@ -169,18 +122,16 @@ def run() -> None:
         }.items():
             assert_contains(path, marker)
 
-        for obsolete in (
-            "v4-command-center",
-            "v4-scanner-v2",
-            "v4-final-chrome",
-            "v4-sitewide",
-            "v4-visual-qa",
-        ):
+        for obsolete in ("v4-command-center", "v4-scanner-v2", "v4-final-chrome", "v4-sitewide", "v4-visual-qa"):
             assert_not_contains("/static/v4-shell.js", obsolete)
             assert_not_contains("/", obsolete)
 
+        assert_not_contains("/static/v4-shell.js", "ensureCanonicalShell")
+        assert_not_contains("/static/v4-shell.js", "createElement('script')")
         assert_not_contains("/static/v4-shell.js", "insertAdjacentHTML")
         assert_not_contains("/static/v4-shell.js", "railStrategy")
+        assert_not_contains("/static/v5-chart-workspace.js", "installRailIcons")
+        assert_not_contains("/static/v5-chart-workspace.js", "navIcons")
         assert_not_contains("/static/v5-chart-workspace.js", "scanner-active")
         assert_not_contains("/static/v5-chart-workspace.js", "railScanner")
         assert_not_contains("/static/v5-chart-workspace.js", "installStyle")
