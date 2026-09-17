@@ -13,6 +13,15 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "artifacts" / "visual-shell"
 BASE = "http://127.0.0.1:8010"
+VIEWPORTS = [(2560, 1440), (1920, 1080), (1440, 900), (1366, 768)]
+ROUTES = [
+    ("chart", "/"),
+    ("scanner", "/scanner"),
+    ("universe", "/?universe=1"),
+    ("sessions", "/sessions"),
+    ("research", "/research"),
+    ("strategies", "/strategies"),
+]
 
 
 def wait_server(timeout: float = 15.0) -> None:
@@ -58,6 +67,9 @@ def assert_shell(page, route_name: str) -> None:
     page.wait_for_selector("#epGlobalFooter", timeout=8000)
     assert page.locator(".ep-nav-item").count() == 6, f"{route_name}: expected 6 global nav items"
     assert page.locator(".ep-nav-item.active").count() == 1, f"{route_name}: expected exactly one active nav item"
+    assert page.locator("#epGlobalHeader").count() == 1
+    assert page.locator("#epGlobalNav").count() == 1
+    assert page.locator("#epGlobalFooter").count() == 1
 
 
 def main() -> int:
@@ -74,32 +86,26 @@ def main() -> int:
     )
     try:
         wait_server()
-        routes = [
-            ("chart", "/"),
-            ("scanner", "/scanner"),
-            ("universe", "/?universe=1"),
-            ("sessions", "/sessions"),
-            ("research", "/research"),
-            ("strategies", "/strategies"),
-        ]
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             context = browser.new_context(viewport={"width": 1920, "height": 1080}, device_scale_factor=1)
             context.route("**/api/**", fulfill_api)
             page = context.new_page()
             console_errors: list[str] = []
-            page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
-            for name, path in routes:
-                page.goto(f"{BASE}{path}", wait_until="domcontentloaded")
-                assert_shell(page, name)
-                page.wait_for_timeout(700)
-                if name == "chart":
-                    page.wait_for_selector("#drawingToolbar", timeout=8000)
-                    nav_box = page.locator("#epGlobalNav").bounding_box()
-                    tool_box = page.locator("#drawingToolbar").bounding_box()
-                    assert nav_box and tool_box
-                    assert tool_box["x"] >= nav_box["x"] + nav_box["width"], "Chart drawing toolbar overlaps global navigation"
-                page.screenshot(path=str(OUT / f"{name}-1920x1080.png"), full_page=True)
+            page.on("console", lambda msg: console_errors.append(f"{page.url}: {msg.text}") if msg.type == "error" else None)
+            for width, height in VIEWPORTS:
+                page.set_viewport_size({"width": width, "height": height})
+                for name, path in ROUTES:
+                    page.goto(f"{BASE}{path}", wait_until="domcontentloaded")
+                    assert_shell(page, name)
+                    page.wait_for_timeout(650)
+                    if name == "chart":
+                        page.wait_for_selector("#drawingToolbar", timeout=8000)
+                        nav_box = page.locator("#epGlobalNav").bounding_box()
+                        tool_box = page.locator("#drawingToolbar").bounding_box()
+                        assert nav_box and tool_box
+                        assert tool_box["x"] >= nav_box["x"] + nav_box["width"] - 1, "Chart drawing toolbar overlaps global navigation"
+                    page.screenshot(path=str(OUT / f"{name}-{width}x{height}.png"), full_page=True)
             browser.close()
         if console_errors:
             (OUT / "console-errors.txt").write_text("\n".join(console_errors), encoding="utf-8")
