@@ -33,6 +33,7 @@ jobs:
           node --check web/v4-sitewide.js
           node --check web/v4-universe-refine.js
           node --check web/v4-universe-safety.js
+          node --check web/v5-chart-workspace.js
       - name: Verify workstation assets
         run: |
           test -s scripts/runtime_smoke.py
@@ -57,6 +58,8 @@ jobs:
           test -s web/v4-universe-safety.css
           test -s web/v4-universe-safety.js
           test -s web/v4-visual-qa.css
+          test -s web/v5-chart-workspace.css
+          test -s web/v5-chart-workspace.js
           test -s web/product-pages.css
           test -s web/product-chrome.css
           test -s web/product-chrome.js
@@ -84,6 +87,8 @@ jobs:
           grep -q 'v4-universe-safety.css' web/v4-shell.js
           grep -q 'v4-universe-safety.js' web/v4-shell.js
           grep -q 'v4-visual-qa.css' web/v4-shell.js
+          grep -q 'v5-chart-workspace.js' web/v4-shell.js
+          grep -q 'v5-chart-workspace.css' web/v4-shell.js
           grep -q 'product-visual-qa.css' web/scanner.css
           grep -q 'product-visual-qa.css' web/sessions.css
           grep -q 'product-visual-qa.css' web/research.css
