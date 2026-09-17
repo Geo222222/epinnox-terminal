@@ -119,22 +119,23 @@
 
   function installStrategyModal(){
     const panel=$('strategyPanel');if(!panel||$('v5StrategyModal'))return;
-    const modal=document.createElement('div');modal.id='v5StrategyModal';modal.className='v5-modal hidden';modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','v5StrategyModalTitle');
-    modal.innerHTML=`<div class="v5-modal-backdrop" data-v5-close></div><section class="v5-modal-card"><header class="v5-modal-head"><div><span class="eyebrow">EXPERIMENT CONTROL</span><h2 id="v5StrategyModalTitle">Strategy settings</h2></div><div class="v5-modal-head-actions"><span class="v5-auto-apply-note">Backtest changes auto-apply</span><button class="v5-icon-button" id="v5ModalClose" type="button" aria-label="Close strategy settings">${svg('close')}</button></div></header><div id="v5StrategyModalBody" class="v5-modal-body"></div><footer class="v5-modal-foot"><button id="v5ModalDone" class="v5-modal-primary" type="button">Apply & close</button></footer></section>`;
+    const modal=document.createElement('div');modal.id='v5StrategyModal';modal.className='v5-modal hidden';modal.setAttribute('role','dialog');modal.setAttribute('aria-labelledby','v5StrategyModalTitle');
+    modal.innerHTML=`<section class="v5-modal-card"><header class="v5-modal-head"><div><span class="eyebrow">EXPERIMENT CONTROL</span><h2 id="v5StrategyModalTitle">Strategy settings</h2></div><div class="v5-modal-head-actions"><span class="v5-auto-apply-note">Auto-apply</span><button class="v5-icon-button" id="v5ModalClose" type="button" aria-label="Close strategy settings">${svg('close')}</button></div></header><div id="v5StrategyModalBody" class="v5-modal-body"></div><footer class="v5-modal-foot"><button id="v5ModalDone" class="v5-modal-primary" type="button">Done</button></footer></section>`;
     document.body.appendChild(modal);$('v5StrategyModalBody').appendChild(panel);panel.classList.add('active');
-    modal.querySelector('[data-v5-close]')?.addEventListener('click',closeStrategyModal);
     $('v5ModalClose')?.addEventListener('click',closeStrategyModal);$('v5ModalDone')?.addEventListener('click',closeStrategyModal);
     document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.classList.contains('hidden'))closeStrategyModal()});
   }
 
   function openStrategyModal(){
     const modal=$('v5StrategyModal');if(!modal)return;
-    modalSnapshot=snapshotStrategy();modal.classList.remove('hidden');document.body.classList.add('v5-modal-open');
-    requestAnimationFrame(()=>modal.querySelector('select,input,button')?.focus());
+    modalSnapshot=snapshotStrategy();
+    modal.classList.remove('hidden');
+    requestAnimationFrame(()=>{requestAnimationFrame(()=>{modal.querySelector('select,input,button')?.focus()})});
   }
   function closeStrategyModal(){
     const modal=$('v5StrategyModal');if(!modal)return;
-    modal.classList.add('hidden');document.body.classList.remove('v5-modal-open');modalSnapshot=null;$('v5StrategySettings')?.focus();
+    modal.classList.add('hidden');
+    modalSnapshot=null;$('v5StrategySettings')?.focus();
   }
 
   function installDockControls(){
