@@ -22,7 +22,8 @@ def test_canonical_home_surfaces_own_their_visual_contracts():
     assert ".u-table-shell" in universe_css
     assert ".u-inspector" in universe_css
     assert "prefers-reduced-motion" in universe_css
-    assert "prefers-reduced-motion" in chart_css
+    assert "body.v5-chart-active .chart-workspace" in chart_css
+    assert "#chart{height:100%!important;min-height:180px!important}" in chart_css
 
 
 def test_obsolete_home_chrome_assets_are_gone():
