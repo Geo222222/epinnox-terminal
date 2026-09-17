@@ -7,12 +7,15 @@ def read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_v5_chart_workspace_assets_exist_and_are_loaded():
+def test_v5_chart_workspace_assets_are_part_of_initial_page_boot():
+    index = read("web/index.html")
     shell = read("web/v4-shell.js")
     js = read("web/v5-chart-workspace.js")
     css = read("web/v5-chart-workspace.css")
-    assert "v5-chart-workspace.js" in shell
-    assert "v5-chart-workspace.css" in shell
+
+    assert '/static/v5-chart-workspace.css' in index
+    assert '/static/v5-chart-workspace.js' in index
+    assert 'v5-chart-workspace' not in shell
     assert "v5QuickStrategy" in js
     assert "v5StrategyModal" in js
     assert "v5PositionDock" in js
@@ -26,6 +29,13 @@ def test_v5_chart_is_chart_first_and_not_right_inspector_driven():
     assert "grid-template-columns:var(--v5-rail) minmax(0,1fr)" in css
     assert "host.appendChild(pos)" in js
     assert "appendChild(panel)" in js
+
+
+def test_v5_chart_host_has_measurable_height():
+    css = read("web/v5-chart-workspace.css")
+    assert "chart-stage{grid-row:2;height:100%;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto}" in css
+    assert "#chart{height:100%!important;min-height:180px!important}" in css
+    assert "#chart{height:auto!important" not in css
 
 
 def test_v5_primary_strategy_remains_quickly_changeable():
